@@ -1,0 +1,152 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+env.bak/
+venv.bak/
+
+# YOLO Training Outputs
+runs/
+weights/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.torchscript
+
+# IMPORTANT: Keep initial models directory structure but ignore trained models
+# If you want to version control specific models, use git-lfs
+models/*.pt
+models/*.pth
+models/*.onnx
+models/*.engine
+!models/.gitkeep
+
+# Data - DO NOT commit datasets
+data/processed/
+data/raw/
+data/*.zip
+data/*.tar.gz
+data/*/images/
+data/*/labels/
+
+# Label Studio exports - MAY CONTAIN SENSITIVE INFO (names, emails, etc)
+# DO NOT commit these files - they may contain PII
+data/project-*/classes.txt
+data/project-*/notes.json
+data/project-*/tasks.json
+data/project-*/*.json
+
+# Images and Videos - These are large, don't commit
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Results - Training and evaluation outputs
+results/
+outputs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+wandb/
+tensorboard/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+!notebooks/*.ipynb
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+temp/
+tmp/
+
+# Archive files (unless intentional)
+*.tar
+*.gz
+*.zip
+*.rar
+*.7z
+
+# GPU specific
+*.cudnn
+cuda_*.log
+
+# MLflow (if used)
+mlruns/
+mlartifacts/
+
+# DVC (if used)
+.dvc
+*.dvc

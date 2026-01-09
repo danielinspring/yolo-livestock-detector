@@ -54,7 +54,7 @@ st.markdown('<div class="sub-header">Ride & Cowtail Detection System</div>', uns
 st.markdown("---")
 st.markdown("### Welcome to the YOLO Detection System")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     st.markdown("#### 📸 Inference")
@@ -89,6 +89,17 @@ with col3:
     if st.button("Go to Dataset Info →", key="btn_dataset"):
         st.switch_page("pages/3_📊_Dataset_Info.py")
 
+with col4:
+    st.markdown("#### 🚀 Training")
+    st.markdown("""
+    - Train YOLO models
+    - Real-time logs
+    - Background training
+    - Resume support
+    """)
+    if st.button("Go to Training →", key="btn_training"):
+        st.switch_page("pages/4_🚀_Training.py")
+
 st.markdown("---")
 
 # Project info
@@ -106,7 +117,7 @@ with col1:
         st.metric("Model Size", f"{size_mb:.1f} MB")
     else:
         st.warning("⚠ No trained model found")
-        st.info("Train a model first using: `python scripts/train.py`")
+        st.info("Train a model using the 🚀 Training page or CLI: `python scripts/train.py`")
 
 with col2:
     st.markdown("### 📦 Dataset Status")
@@ -188,6 +199,7 @@ with st.sidebar:
     st.markdown("- 📸 Run inference")
     st.markdown("- 🏷️ Auto-label images")
     st.markdown("- 📊 View dataset info")
+    st.markdown("- 🚀 Train models")
 
     st.markdown("---")
 

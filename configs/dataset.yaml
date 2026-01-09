@@ -2,7 +2,7 @@ names:
 - ride
 - cowtail
 nc: 2
-path: /Users/lt-018/codish/open_soures/seung/data/processed
+path: data/processed
 test: images/test
 train: images/train
 val: images/val

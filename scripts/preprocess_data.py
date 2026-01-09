@@ -116,7 +116,7 @@ class LabelStudioPreprocessor:
     def create_dataset_yaml(self):
         """Create YOLO dataset configuration file"""
         yaml_content = {
-            'path': str(self.output_dir.absolute()),
+            'path': str(self.output_dir),  # Use relative path for portability
             'train': 'images/train',
             'val': 'images/val',
             'test': 'images/test',

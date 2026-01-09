@@ -83,7 +83,11 @@ The GUI will open in your browser at http://localhost:8501
 
 ### 1. Preprocess Data
 ```bash
-python scripts/preprocess_data.py
+# Basic preprocessing
+python scripts/preprocess_data.py --input data/<your-export-folder>
+
+# With 10% background images (recommended)
+python scripts/preprocess_data.py --input data/<your-export-folder> --background-ratio 0.1
 ```
 
 ### 2. Train Model

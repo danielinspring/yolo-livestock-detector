@@ -1,18 +1,8 @@
-# YOLO Dataset Configuration
-# Combined model for ride and cowtail detection
-
-# Dataset path (will be updated by preprocessing script)
-path: data/processed
-
-# Train/val/test splits
+names:
+- ride
+- cowtail
+nc: 2
+path: /Users/lt-018/codish/open_soures/seung/data/processed
+test: images/test
 train: images/train
 val: images/val
-test: images/test
-
-# Number of classes
-nc: 2
-
-# Class names
-names:
-  0: ride
-  1: cowtail

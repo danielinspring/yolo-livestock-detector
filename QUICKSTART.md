@@ -17,15 +17,15 @@ pip install -r requirements.txt
 
 ## Step 2: Prepare Your Data
 
-You have Label Studio export data in `data/project-8-at-2026-01-07-07-09-0780865d/`.
+Place your Label Studio export data in the `data/` directory. The export folder can have any name (e.g., `data/my-project-export/`).
 
 ### Important: Locate Your Images
 
-The Label Studio export contains labels but the images directory is empty. You need to:
+The Label Studio export contains labels but the images directory may be empty. You need to:
 
 1. **Option A**: Download images from Label Studio
    - Export images along with annotations from Label Studio
-   - Place them in `data/project-8-at-2026-01-07-07-09-0780865d/images/`
+   - Place them in `data/<your-export-folder>/images/`
 
 2. **Option B**: Use existing images from another location
    - If you already have the images elsewhere, note that path
@@ -36,17 +36,46 @@ The Label Studio export contains labels but the images directory is empty. You n
 Filter and remap the classes (keep only ride and cowtail):
 
 ```bash
-# If images are in the Label Studio export
-python scripts/preprocess_data.py
+# Specify your data folder with --input
+python scripts/preprocess_data.py --input data/<your-export-folder>
 
-# If images are in a different location
-python scripts/preprocess_data.py --images /path/to/your/images
+# With images from a different location
+python scripts/preprocess_data.py --input data/<your-export-folder> --images /path/to/your/images
+
+# Include 10% background images (recommended to reduce false positives)
+python scripts/preprocess_data.py --input data/<your-export-folder> --background-ratio 0.1
+
+# Example with actual folder name
+python scripts/preprocess_data.py --input data/project-8-at-2026-01-07-07-09-0780865d --background-ratio 0.1
 ```
+
+**Preprocessing Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--input` | Path to Label Studio export folder (required) |
+| `--output` | Output directory (default: `data/processed`) |
+| `--images` | Path to images if not in export folder |
+| `--background-ratio` | Ratio of background images to include (0.0-1.0, default: 0.0) |
 
 This will:
 - Filter labels to keep only "ride" and "cowtail"
 - Remap class IDs: ride → 0, cowtail → 1
+- Optionally add background images (images without target objects) to reduce false positives
+- Clean up orphan labels (labels without matching images)
 - Create processed dataset in `data/processed/`
+
+**Combining Multiple Datasets:**
+
+You can run the script multiple times with different input folders to stack data:
+
+```bash
+python scripts/preprocess_data.py --input data/dataset-A
+python scripts/preprocess_data.py --input data/dataset-B
+python scripts/preprocess_data.py --input data/dataset-C
+```
+
+> ⚠️ **Note on filename collisions**: If files have the same name across datasets, labels will be **overwritten** while images will be **skipped**. Ensure unique filenames across datasets, or clear `data/processed/` before each run if you don't want stacking.
 
 ### Split the Data
 

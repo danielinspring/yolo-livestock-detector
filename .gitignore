@@ -24,6 +24,7 @@ pip-delete-this-directory.txt
 
 # Virtual Environment
 venv/
+venv-*/
 env/
 ENV/
 .venv
@@ -47,20 +48,10 @@ models/*.onnx
 models/*.engine
 !models/.gitkeep
 
-# Data - DO NOT commit datasets
-data/processed/
-data/raw/
-data/*.zip
-data/*.tar.gz
-data/*/images/
-data/*/labels/
-
-# Label Studio exports - MAY CONTAIN SENSITIVE INFO (names, emails, etc)
-# DO NOT commit these files - they may contain PII
-data/project-*/classes.txt
-data/project-*/notes.json
-data/project-*/tasks.json
-data/project-*/*.json
+# Data - DO NOT commit datasets (images, labels, processed data)
+# This includes Label Studio exports which may contain PII
+data/
+!data/.gitkeep
 
 # Images and Videos - These are large, don't commit
 *.jpg

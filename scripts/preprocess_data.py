@@ -7,6 +7,7 @@ and remaps them to 0 and 1 respectively.
 import os
 import shutil
 import json
+import random
 from pathlib import Path
 from tqdm import tqdm
 import yaml
@@ -153,12 +154,13 @@ class LabelStudioPreprocessor:
         print(f"\nFound {len(image_files)} image files")
         return len(image_files)
 
-    def copy_images(self, source_images_dir=None):
+    def copy_images(self, source_images_dir=None, background_ratio=0.0):
         """
         Copy images to processed directory
 
         Args:
             source_images_dir: Optional path to images if not in Label Studio export
+            background_ratio: Ratio of background images to include (0.0 to 1.0)
         """
         if source_images_dir:
             images_dir = Path(source_images_dir)
@@ -179,29 +181,86 @@ class LabelStudioPreprocessor:
         # Copy only images that have corresponding labels
         image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.JPG', '.JPEG', '.PNG', '.BMP']
         copied = 0
+        background_copied = 0
 
         all_images = []
         for ext in image_extensions:
             all_images.extend(images_dir.glob(f"*{ext}"))
 
-        print(f"\nCopying images with ride/cowtail annotations...")
-        for img_file in tqdm(all_images):
-            # Check if this image has a corresponding label
+        # Separate images with labels and background images
+        images_with_labels = []
+        background_images = []
+
+        for img_file in all_images:
             if img_file.stem in kept_labels:
+                images_with_labels.append(img_file)
+            else:
+                background_images.append(img_file)
+
+        print(f"\nCopying images with ride/cowtail annotations...")
+        for img_file in tqdm(images_with_labels):
+            dest = output_images_dir / img_file.name
+            if not dest.exists():
+                shutil.copy2(img_file, dest)
+            copied += 1
+
+        print(f"Copied {copied} images with annotations")
+
+        # Add background images if ratio > 0
+        if background_ratio > 0 and background_images:
+            num_background = int(len(images_with_labels) * background_ratio)
+            num_background = min(num_background, len(background_images))
+
+            selected_backgrounds = random.sample(background_images, num_background)
+
+            print(f"\nAdding {num_background} background images ({background_ratio*100:.0f}% of labeled images)...")
+            for img_file in tqdm(selected_backgrounds):
                 dest = output_images_dir / img_file.name
                 if not dest.exists():
                     shutil.copy2(img_file, dest)
-                copied += 1
+                # Create empty label file for background image
+                empty_label = output_labels_dir / f"{img_file.stem}.txt"
+                empty_label.touch()
+                background_copied += 1
 
-        print(f"Copied {copied} images")
-        return copied
+            print(f"Added {background_copied} background images")
 
-    def process(self, source_images_dir=None):
+        print(f"\nTotal images: {copied + background_copied}")
+
+        # Clean up orphan labels (labels without matching images)
+        self.cleanup_orphan_labels()
+
+        return copied + background_copied
+
+    def cleanup_orphan_labels(self):
+        """Remove label files that don't have corresponding images"""
+        output_labels_dir = self.output_dir / "labels"
+        output_images_dir = self.output_dir / "images"
+
+        # Get all image stems
+        image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.JPG', '.JPEG', '.PNG', '.BMP']
+        image_stems = set()
+        for ext in image_extensions:
+            for img in output_images_dir.glob(f"*{ext}"):
+                image_stems.add(img.stem)
+
+        # Remove orphan labels
+        orphan_count = 0
+        for label_file in output_labels_dir.glob("*.txt"):
+            if label_file.stem not in image_stems:
+                label_file.unlink()
+                orphan_count += 1
+
+        if orphan_count > 0:
+            print(f"\nCleaned up {orphan_count} orphan labels (no matching images)")
+
+    def process(self, source_images_dir=None, background_ratio=0.0):
         """
         Run full preprocessing pipeline
 
         Args:
             source_images_dir: Optional path to images directory
+            background_ratio: Ratio of background images to include (0.0 to 1.0)
         """
         print("=" * 60)
         print("YOLO Data Preprocessing")
@@ -222,7 +281,7 @@ class LabelStudioPreprocessor:
 
         # Copy images if available
         if image_count > 0 or source_images_dir:
-            self.copy_images(source_images_dir)
+            self.copy_images(source_images_dir, background_ratio=background_ratio)
 
         # Create dataset YAML
         self.create_dataset_yaml()
@@ -249,8 +308,8 @@ def main():
     parser.add_argument(
         '--input',
         type=str,
-        default='data/project-8-at-2026-01-07-07-09-0780865d',
-        help='Input Label Studio export directory'
+        required=True,
+        help='Path to Label Studio export directory (e.g., data/your-export-folder)'
     )
     parser.add_argument(
         '--output',
@@ -264,11 +323,17 @@ def main():
         default=None,
         help='Path to images directory if not in Label Studio export'
     )
+    parser.add_argument(
+        '--background-ratio',
+        type=float,
+        default=0.0,
+        help='Ratio of background images to include (0.0 to 1.0, default: 0.0)'
+    )
 
     args = parser.parse_args()
 
     preprocessor = LabelStudioPreprocessor(args.input, args.output)
-    preprocessor.process(source_images_dir=args.images)
+    preprocessor.process(source_images_dir=args.images, background_ratio=args.background_ratio)
 
 
 if __name__ == "__main__":

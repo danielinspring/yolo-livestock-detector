@@ -57,18 +57,47 @@ except ImportError as e:
     st.info("Install with: `pip install supervision ultralytics`")
     st.stop()
 
-# Check for trained model
-model_path = Path("models/best.pt")
-results_model_path = Path("results/train/combined_model/weights/best.pt")
+# Scan for available model versions
+def get_model_versions():
+    """Scan models directory for model versions (folders containing .pt files)"""
+    models_dir = Path("models")
+    versions = {}
 
-if model_path.exists():
-    active_model_path = model_path
-elif results_model_path.exists():
-    active_model_path = results_model_path
-else:
-    active_model_path = None
+    if models_dir.exists():
+        # Find all .pt files recursively
+        for pt_file in models_dir.rglob("*.pt"):
+            # Skip symlinks
+            if pt_file.is_symlink():
+                continue
 
-if active_model_path is None:
+            # Get the parent folder as version name
+            parent = pt_file.parent
+            if parent == models_dir:
+                version_name = "root"
+            else:
+                version_name = str(parent.relative_to(models_dir))
+
+            if version_name not in versions:
+                versions[version_name] = []
+            versions[version_name].append(pt_file)
+
+    # Also check results directory
+    results_model_path = Path("results/train/combined_model/weights/best.pt")
+    if results_model_path.exists():
+        version_name = "results/train"
+        if version_name not in versions:
+            versions[version_name] = []
+        versions[version_name].append(results_model_path)
+
+    # Sort each version's files (best.pt first, then by name)
+    for version in versions:
+        versions[version].sort(key=lambda x: (0 if x.name == "best.pt" else 1, x.name))
+
+    return versions
+
+model_versions = get_model_versions()
+
+if not model_versions:
     st.warning("⚠️ No trained model found")
     st.info("Train a model first using the 🚀 Training page.")
     st.stop()
@@ -78,23 +107,49 @@ with st.sidebar:
     st.markdown("## 📈 Evaluation")
     st.markdown("""
     Evaluate your trained YOLO model:
-    
+
     **Features:**
     - Sample predictions
     - Confusion matrix
     - Class distribution
     - Performance metrics
-    
+
     **Powered by:**
     - [Supervision](https://github.com/roboflow/supervision)
     - [Ultralytics YOLO](https://docs.ultralytics.com)
     """)
-    
+
     st.markdown("---")
-    
+
     # Model selection
     st.markdown("### Model")
-    st.success(f"✓ {active_model_path}")
+
+    # Sort versions by modification time (newest first)
+    sorted_versions = sorted(
+        model_versions.keys(),
+        key=lambda v: max(f.stat().st_mtime for f in model_versions[v]),
+        reverse=True
+    )
+
+    selected_version = st.selectbox(
+        "Model Version",
+        options=sorted_versions,
+        format_func=lambda x: f"📁 {x}" if x != "root" else "📁 models/",
+        help="Choose a model version folder"
+    )
+
+    # Show available weights in that version
+    version_files = model_versions[selected_version]
+    if len(version_files) > 1:
+        active_model_path = Path(st.selectbox(
+            "Weight File",
+            options=[str(f) for f in version_files],
+            format_func=lambda x: f"📦 {Path(x).name}",
+            help="Choose weight file (best.pt recommended)"
+        ))
+    else:
+        active_model_path = version_files[0]
+        st.info(f"📦 {version_files[0].name}")
     
     # Confidence threshold
     confidence = st.slider(

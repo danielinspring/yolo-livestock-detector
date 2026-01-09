@@ -24,16 +24,76 @@ Perfect for quickly labeling new data!
 # Sidebar settings
 st.sidebar.header("⚙️ Settings")
 
+# Scan for available model versions
+def get_model_versions():
+    """Scan models directory for model versions (folders containing .pt files)"""
+    models_dir = Path("models")
+    versions = {}
+
+    if models_dir.exists():
+        # Find all .pt files recursively
+        for pt_file in models_dir.rglob("*.pt"):
+            # Skip symlinks
+            if pt_file.is_symlink():
+                continue
+
+            # Get the parent folder as version name
+            parent = pt_file.parent
+            if parent == models_dir:
+                version_name = "root"
+            else:
+                version_name = str(parent.relative_to(models_dir))
+
+            if version_name not in versions:
+                versions[version_name] = []
+            versions[version_name].append(pt_file)
+
+    # Sort each version's files (best.pt first, then by name)
+    for version in versions:
+        versions[version].sort(key=lambda x: (0 if x.name == "best.pt" else 1, x.name))
+
+    return versions
+
+model_versions = get_model_versions()
+
 # Model selection
-model_path = st.sidebar.text_input(
-    "Model Path",
-    value="models/best.pt",
-    help="Path to YOLO model weights"
-)
+if model_versions:
+    # Sort versions by modification time (newest first)
+    sorted_versions = sorted(
+        model_versions.keys(),
+        key=lambda v: max(f.stat().st_mtime for f in model_versions[v]),
+        reverse=True
+    )
+
+    selected_version = st.sidebar.selectbox(
+        "Model Version",
+        options=sorted_versions,
+        format_func=lambda x: f"📁 {x}" if x != "root" else "📁 models/",
+        help="Choose a model version folder"
+    )
+
+    # Show available weights in that version
+    version_files = model_versions[selected_version]
+    if len(version_files) > 1:
+        model_path = st.sidebar.selectbox(
+            "Weight File",
+            options=[str(f) for f in version_files],
+            format_func=lambda x: f"📦 {Path(x).name}",
+            help="Choose weight file (best.pt recommended)"
+        )
+    else:
+        model_path = str(version_files[0])
+        st.sidebar.info(f"📦 {version_files[0].name}")
+else:
+    model_path = st.sidebar.text_input(
+        "Model Path",
+        value="models/best.pt",
+        help="Path to YOLO model weights"
+    )
 
 # Check if model exists
-if not Path(model_path).exists():
-    st.sidebar.error(f"❌ Model not found: {model_path}")
+if not model_path or not Path(model_path).exists():
+    st.sidebar.error(f"❌ Model not found")
     st.error("Please train a model first or provide a valid model path")
     st.stop()
 

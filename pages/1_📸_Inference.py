@@ -17,16 +17,41 @@ st.title("📸 Object Detection Inference")
 # Sidebar settings
 st.sidebar.header("⚙️ Settings")
 
+# Scan for available models
+def get_available_models():
+    """Scan models directory for all available .pt files"""
+    models_dir = Path("models")
+    available_models = []
+    
+    if models_dir.exists():
+        # Find all .pt files recursively
+        for pt_file in models_dir.rglob("*.pt"):
+            available_models.append(str(pt_file))
+    
+    # Sort by modification time (newest first)
+    available_models.sort(key=lambda x: Path(x).stat().st_mtime, reverse=True)
+    return available_models
+
+available_models = get_available_models()
+
 # Model selection
-model_path = st.sidebar.text_input(
-    "Model Path",
-    value="models/best.pt",
-    help="Path to YOLO model weights"
-)
+if available_models:
+    model_path = st.sidebar.selectbox(
+        "Select Model",
+        options=available_models,
+        format_func=lambda x: f"📦 {x}",
+        help="Choose a trained model version"
+    )
+else:
+    model_path = st.sidebar.text_input(
+        "Model Path",
+        value="models/best.pt",
+        help="Path to YOLO model weights"
+    )
 
 # Check if model exists
-if not Path(model_path).exists():
-    st.sidebar.error(f"❌ Model not found: {model_path}")
+if not model_path or not Path(model_path).exists():
+    st.sidebar.error(f"❌ Model not found")
     st.error("Please train a model first or provide a valid model path")
     st.info("Train a model using: `python scripts/train.py`")
     st.stop()

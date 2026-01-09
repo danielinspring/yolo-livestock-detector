@@ -35,7 +35,7 @@ def load_yolo_dataset(data_dir: str, name: str = "yolo_dataset", split: str = No
         raise FileNotFoundError(f"Labels directory not found: {labels_dir}")
     
     # Class names for the combined model
-    classes = ["ride", "cowtail"]
+    classes = ["cowtail", "ride"]  # 0=cowtail, 1=ride
     
     # Delete existing dataset with same name if exists
     if fo.dataset_exists(name):

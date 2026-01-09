@@ -37,7 +37,7 @@ class LabelStudioPreprocessor:
             8: 1   # ride becomes 1
         }
 
-        self.class_names = ["ride", "cowtail"]  # Final classes
+        self.class_names = ["cowtail", "ride"]  # Final classes (0=cowtail, 1=ride)
 
     def load_notes(self):
         """Load notes.json to understand class structure"""
@@ -121,7 +121,7 @@ class LabelStudioPreprocessor:
             'val': 'images/val',
             'test': 'images/test',
             'nc': 2,  # number of classes
-            'names': ['ride', 'cowtail']
+            'names': ['cowtail', 'ride']
         }
 
         yaml_path = Path("configs/dataset.yaml")

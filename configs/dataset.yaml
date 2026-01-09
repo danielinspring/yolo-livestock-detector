@@ -1,6 +1,6 @@
 names:
-- ride
 - cowtail
+- ride
 nc: 2
 path: data/processed
 test: images/test

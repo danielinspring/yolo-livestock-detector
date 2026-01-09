@@ -90,6 +90,34 @@ This creates:
 - Validation set: 20%
 - Test set: 10%
 
+### View Dataset with FiftyOne (Optional)
+
+Visualize your dataset with FiftyOne to verify annotations before training.
+
+> **Note**: FiftyOne requires Python 3.11 or lower. Use the separate `venv-fiftyone` environment.
+
+```bash
+# Activate FiftyOne environment
+source venv-fiftyone/bin/activate
+
+# View the processed dataset
+python scripts/view_dataset.py --data data/processed
+
+# View specific split only
+python scripts/view_dataset.py --data data/processed --split val
+
+# Use different port
+python scripts/view_dataset.py --data data/processed --port 5151
+```
+
+Open http://localhost:5151 in your browser to explore images and annotations.
+
+```bash
+# When done, deactivate and switch back to main env
+deactivate
+source venv/bin/activate
+```
+
 ## Step 3: Train the Model
 
 Train YOLOv8s model (recommended):

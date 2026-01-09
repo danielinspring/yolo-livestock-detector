@@ -192,15 +192,10 @@ class YOLOTrainer:
         models_dir = Path("models") / today_date
         models_dir.mkdir(parents=True, exist_ok=True)
         
-        # Generate unique filename with postfix if exists
+        # Generate filename with timestamp
         base_name = self.name  # Use experiment name as base filename
-        final_model = models_dir / f"{base_name}.pt"
-        
-        # Add numeric postfix if file already exists
-        counter = 1
-        while final_model.exists():
-            final_model = models_dir / f"{base_name}_{counter}.pt"
-            counter += 1
+        timestamp = datetime.now().strftime("%H%M%S")
+        final_model = models_dir / f"{base_name}_{timestamp}.pt"
         
         # Check which weights file to copy (best.pt preferred, fall back to last.pt)
         if best_weights.exists():

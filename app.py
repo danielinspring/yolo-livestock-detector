@@ -224,8 +224,8 @@ with st.sidebar:
 
     st.markdown("### Model Classes")
     st.code("""
-0: ride
-1: cowtail
+0: cowtail
+1: ride
     """)
 
     st.markdown("### Input Size")

@@ -15,7 +15,7 @@ st.set_page_config(page_title="Dataset Info", page_icon="📊", layout="wide")
 st.title("📊 Dataset Information & Statistics")
 
 # Class names
-CLASS_NAMES = {0: "ride", 1: "cowtail"}
+CLASS_NAMES = {0: "cowtail", 1: "ride"}
 
 def analyze_dataset(data_dir):
     """Analyze dataset and return statistics"""

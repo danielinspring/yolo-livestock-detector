@@ -60,7 +60,7 @@ python scripts/preprocess_data.py --input data/project-8-at-2026-01-07-07-09-078
 
 This will:
 - Filter labels to keep only "ride" and "cowtail"
-- Remap class IDs: ride → 0, cowtail → 1
+- Remap class IDs: cowtail → 0, ride → 1
 - Optionally add background images (images without target objects) to reduce false positives
 - Clean up orphan labels (labels without matching images)
 - Create processed dataset in `data/processed/`

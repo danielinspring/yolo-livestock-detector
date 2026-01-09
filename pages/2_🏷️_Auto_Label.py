@@ -128,11 +128,11 @@ show_visualization = st.sidebar.checkbox(
 # Class info
 st.sidebar.markdown("### Class Mapping")
 st.sidebar.code("""
-0: ride
-1: cowtail
+0: cowtail
+1: ride
 """)
 
-CLASS_NAMES = {0: "ride", 1: "cowtail"}
+CLASS_NAMES = {0: "cowtail", 1: "ride"}
 CLASS_COLORS = {0: (0, 255, 0), 1: (255, 0, 0)}
 
 # Main content

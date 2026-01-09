@@ -205,8 +205,8 @@ Click "📥 Download Statistics as JSON" to get:
 ### Class Information
 
 The model detects two classes:
-- **Class 0**: ride (displayed in green)
-- **Class 1**: cowtail (displayed in blue/red)
+- **Class 0**: cowtail (displayed in green)
+- **Class 1**: ride (displayed in blue/red)
 
 ### Input Size
 

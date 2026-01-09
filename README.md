@@ -8,8 +8,8 @@ Combined YOLO model for detecting both **ride** and **cowtail** objects.
 - **Model Size**: YOLOv8s (small) for optimal performance
 - **Input Size**: 640x384
 - **Classes**:
-  - 0: ride
-  - 1: cowtail
+  - 0: cowtail
+  - 1: ride
 
 ## Project Structure
 

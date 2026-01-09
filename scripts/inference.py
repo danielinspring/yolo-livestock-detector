@@ -45,10 +45,10 @@ class YOLOInference:
         print("Model loaded successfully!")
 
         # Class names
-        self.class_names = ['ride', 'cowtail']
+        self.class_names = ['cowtail', 'ride']
         self.class_colors = {
-            0: (0, 255, 0),    # Green for ride
-            1: (255, 0, 0),    # Blue for cowtail
+            0: (0, 255, 0),    # Green for cowtail
+            1: (255, 0, 0),    # Blue for ride
         }
 
     def predict_image(self, source, save_dir='results/inference', save=True, show=False):
@@ -97,8 +97,8 @@ class YOLOInference:
 
         print(f"\nDetection Summary:")
         print(f"  Total detections: {total_detections}")
-        print(f"  Ride: {class_counts.get(0, 0)}")
-        print(f"  Cowtail: {class_counts.get(1, 0)}")
+        print(f"  Cowtail: {class_counts.get(0, 0)}")
+        print(f"  Ride: {class_counts.get(1, 0)}")
 
         return results
 

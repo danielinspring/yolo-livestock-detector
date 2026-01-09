@@ -84,7 +84,7 @@ class YOLOEvaluator:
 
         # Per-class metrics
         print("\nPer-Class Metrics:")
-        class_names = ['ride', 'cowtail']
+        class_names = ['cowtail', 'ride']
 
         # Try to get per-class metrics if available
         if hasattr(results, 'ap_class_index'):

@@ -79,13 +79,13 @@ iou_threshold = st.sidebar.slider(
 
 # Class colors
 CLASS_COLORS = {
-    0: (0, 255, 0),    # Green for ride
-    1: (255, 0, 0),    # Blue for cowtail
+    0: (0, 255, 0),    # Green for cowtail
+    1: (255, 0, 0),    # Blue for ride
 }
 
 CLASS_NAMES = {
-    0: "ride",
-    1: "cowtail",
+    0: "cowtail",
+    1: "ride",
 }
 
 # Tabs

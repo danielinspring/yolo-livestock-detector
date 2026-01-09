@@ -45,7 +45,7 @@ class AutoLabeler:
         print("Model loaded successfully!")
 
         # Class names
-        self.class_names = ['ride', 'cowtail']
+        self.class_names = ['cowtail', 'ride']
 
     def label_images(self, source_dir, output_dir, save_images=False, save_visualizations=False):
         """
@@ -194,8 +194,8 @@ class AutoLabeler:
         stats['empty_images'] = empty_images
         stats['total_detections'] = total_detections
         stats['class_counts'] = {
-            'ride': class_counts.get(0, 0),
-            'cowtail': class_counts.get(1, 0),
+            'cowtail': class_counts.get(0, 0),
+            'ride': class_counts.get(1, 0),
         }
 
         # Save stats

@@ -185,9 +185,11 @@ class YOLOTrainer:
 
         print(f"\nResults saved to: {save_dir}")
 
-        # Copy best model to models/created_data directory
+        # Copy best model to models/{date} directory
         import shutil
-        models_dir = Path("models") / "created_data"
+        from datetime import datetime
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        models_dir = Path("models") / today_date
         models_dir.mkdir(parents=True, exist_ok=True)
         
         # Generate unique filename with postfix if exists

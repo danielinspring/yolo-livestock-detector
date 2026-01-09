@@ -188,9 +188,10 @@ else:
         # Batch size
         batch_size = st.select_slider(
             "Batch Size",
-            options=[4, 8, 16, 32, 64],
-            value=16,
-            help="Batch size for training. Larger batches need more GPU memory."
+            options=[-1, 4, 8, 16, 32, 64],
+            value=-1,
+            format_func=lambda x: "Auto" if x == -1 else str(x),
+            help="Batch size for training. 'Auto' lets YOLO automatically choose based on GPU memory. Larger batches need more GPU memory."
         )
         
         # Image size

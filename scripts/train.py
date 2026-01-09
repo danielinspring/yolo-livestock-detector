@@ -171,23 +171,44 @@ class YOLOTrainer:
         print("Training Complete!")
         print("=" * 60)
 
+        # Get the actual save directory from training results
+        # YOLO saves to runs/detect/{project}/{name}, not directly to {project}/{name}
+        save_dir = Path(results.save_dir)
+        
         # Display results
-        best_weights = Path(self.project) / self.name / "weights" / "best.pt"
-        last_weights = Path(self.project) / self.name / "weights" / "last.pt"
+        best_weights = save_dir / "weights" / "best.pt"
+        last_weights = save_dir / "weights" / "last.pt"
 
         print(f"\nModel weights saved:")
         print(f"  Best: {best_weights}")
         print(f"  Last: {last_weights}")
 
-        print(f"\nResults saved to: {Path(self.project) / self.name}")
+        print(f"\nResults saved to: {save_dir}")
 
-        # Copy best model to models directory
+        # Copy best model to models/created_data directory
         import shutil
-        models_dir = Path("models")
-        models_dir.mkdir(exist_ok=True)
-        final_model = models_dir / "best.pt"
-        shutil.copy2(best_weights, final_model)
-        print(f"\nBest model copied to: {final_model}")
+        models_dir = Path("models") / "created_data"
+        models_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate unique filename with postfix if exists
+        base_name = self.name  # Use experiment name as base filename
+        final_model = models_dir / f"{base_name}.pt"
+        
+        # Add numeric postfix if file already exists
+        counter = 1
+        while final_model.exists():
+            final_model = models_dir / f"{base_name}_{counter}.pt"
+            counter += 1
+        
+        # Check which weights file to copy (best.pt preferred, fall back to last.pt)
+        if best_weights.exists():
+            shutil.copy2(best_weights, final_model)
+            print(f"\nBest model copied to: {final_model}")
+        elif last_weights.exists():
+            shutil.copy2(last_weights, final_model)
+            print(f"\nNote: best.pt not found, copied last.pt to: {final_model}")
+        else:
+            print(f"\nWarning: No model weights found to copy. Check training output.")
 
         return results
 

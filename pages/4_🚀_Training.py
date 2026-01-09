@@ -217,6 +217,33 @@ else:
         
         st.markdown("---")
         
+        # ClearML Integration
+        st.markdown("### 📊 ClearML Tracking")
+        clearml_enabled = st.checkbox(
+            "Enable ClearML",
+            value=False,
+            help="Enable experiment tracking with ClearML. Requires clearml-init setup."
+        )
+        
+        if clearml_enabled:
+            clearml_project = st.text_input(
+                "Project Name",
+                value="YOLO-Training",
+                help="ClearML project name for organizing experiments"
+            )
+            clearml_task = st.text_input(
+                "Task Name (optional)",
+                value="",
+                placeholder="Auto-generated if empty",
+                help="Custom task name. Leave empty for auto-generated name."
+            )
+            st.info("💡 Make sure you've run `clearml-init` to configure credentials.")
+        else:
+            clearml_project = "YOLO-Training"
+            clearml_task = ""
+        
+        st.markdown("---")
+        
         # Start button
         if st.button("🚀 Start Training", type="primary", use_container_width=True):
             with st.spinner("Starting training..."):
@@ -228,10 +255,15 @@ else:
                     device=device,
                     img_width=img_width,
                     img_height=img_height,
+                    clearml_enabled=clearml_enabled,
+                    clearml_project=clearml_project,
+                    clearml_task=clearml_task,
                 )
                 
                 if result["success"]:
                     st.success(result["message"])
+                    if clearml_enabled:
+                        st.info("📊 ClearML tracking enabled. View experiments at: https://app.clear.ml")
                     time.sleep(1)
                     st.rerun()
                 else:

@@ -95,10 +95,26 @@ with col4:
     - Train YOLO models
     - Real-time logs
     - Background training
-    - Resume support
+    - ClearML tracking
     """)
     if st.button("Go to Training →", key="btn_training"):
         st.switch_page("pages/4_🚀_Training.py")
+
+st.markdown("---")
+
+# Second row for Evaluation
+col_eval, col_empty1, col_empty2, col_empty3 = st.columns(4)
+
+with col_eval:
+    st.markdown("#### 📈 Evaluation")
+    st.markdown("""
+    - Sample predictions
+    - Confusion matrix
+    - Performance metrics
+    - Supervision viz
+    """)
+    if st.button("Go to Evaluation →", key="btn_evaluation"):
+        st.switch_page("pages/5_📈_Evaluation.py")
 
 st.markdown("---")
 
@@ -200,6 +216,7 @@ with st.sidebar:
     st.markdown("- 🏷️ Auto-label images")
     st.markdown("- 📊 View dataset info")
     st.markdown("- 🚀 Train models")
+    st.markdown("- 📈 Evaluate models")
 
     st.markdown("---")
 

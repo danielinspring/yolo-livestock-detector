@@ -28,6 +28,10 @@ plotly>=5.17.0
 # Optional for advanced features
 tensorboard>=2.13.0
 
+# Experiment tracking and visualization
+clearml>=1.14.0
+supervision>=0.19.0
+
 # ONNX support (optional)
 # onnx>=1.14.0
 # onnxruntime-gpu>=1.15.0  # GPU-accelerated ONNX runtime

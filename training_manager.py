@@ -83,6 +83,9 @@ class TrainingManager:
         device: str = "",
         img_width: int = 640,
         img_height: int = 384,
+        clearml_enabled: bool = False,
+        clearml_project: str = "YOLO-Training",
+        clearml_task: str = "",
     ) -> Dict[str, Any]:
         """
         Start training in background process
@@ -117,6 +120,17 @@ class TrainingManager:
         if self.log_file.exists():
             self.log_file.unlink()
         
+        # Set up environment variables (including ClearML)
+        env = os.environ.copy()
+        if clearml_enabled:
+            env["CLEARML_ENABLED"] = "1"
+            if clearml_project:
+                env["CLEARML_PROJECT"] = clearml_project
+            if clearml_task:
+                env["CLEARML_TASK"] = clearml_task
+        else:
+            env["CLEARML_ENABLED"] = "0"
+        
         # Start subprocess with output redirected to log file
         try:
             with open(self.log_file, 'w') as log_f:
@@ -126,6 +140,7 @@ class TrainingManager:
                     stderr=subprocess.STDOUT,
                     cwd=str(Path(__file__).parent),
                     start_new_session=True,  # Detach from parent
+                    env=env,
                 )
             
             # Save PID
@@ -141,6 +156,9 @@ class TrainingManager:
                 "device": device,
                 "img_width": img_width,
                 "img_height": img_height,
+                "clearml_enabled": clearml_enabled,
+                "clearml_project": clearml_project if clearml_enabled else None,
+                "clearml_task": clearml_task if clearml_enabled else None,
             }
             
             status = {

@@ -170,7 +170,7 @@ else:
         model = st.selectbox(
             "Model Version",
             options=['yolov8n', 'yolov8s', 'yolov8m', 'yolov8l', 'yolov8x',
-                     'yolov11n', 'yolov11s', 'yolov11m', 'yolov11l', 'yolov11x'],
+                     'yolo11n', 'yolo11s', 'yolo11m', 'yolo11l', 'yolo11x'],
             index=1,  # yolov8s default
             help="Select YOLO model version. Smaller models (n) are faster but less accurate."
         )

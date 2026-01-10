@@ -250,6 +250,13 @@ with st.expander("📋 Class Names"):
     for idx, name in class_names.items():
         st.markdown(f"- **{idx}**: {name}")
 
+# Display model training info (if available)
+try:
+    from model_info import display_model_info_card
+    display_model_info_card(str(active_model_path))
+except ImportError:
+    pass
+
 st.markdown("---")
 
 # Main evaluation tabs

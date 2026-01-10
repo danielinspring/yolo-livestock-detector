@@ -99,6 +99,13 @@ if not model_path or not Path(model_path).exists():
 
 st.sidebar.success("✓ Model loaded")
 
+# Display model training info
+try:
+    from model_info import display_model_info_compact
+    display_model_info_compact(model_path)
+except ImportError:
+    pass
+
 # Detection parameters
 conf_threshold = st.sidebar.slider(
     "Confidence Threshold",

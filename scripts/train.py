@@ -187,6 +187,7 @@ class YOLOTrainer:
 
         # Copy best model to models/{date} directory
         import shutil
+        import json
         from datetime import datetime
         today_date = datetime.now().strftime("%Y-%m-%d")
         models_dir = Path("models") / today_date
@@ -206,6 +207,110 @@ class YOLOTrainer:
             print(f"\nNote: best.pt not found, copied last.pt to: {final_model}")
         else:
             print(f"\nWarning: No model weights found to copy. Check training output.")
+        
+        # === SAVE TRAINING METADATA ===
+        # Collect training metrics from results
+        metrics = {}
+        try:
+            if hasattr(results, 'results_dict'):
+                metrics = results.results_dict
+            elif hasattr(results, 'box'):
+                metrics = {
+                    "mAP50": float(results.box.map50) if hasattr(results.box, 'map50') else None,
+                    "mAP50-95": float(results.box.map) if hasattr(results.box, 'map') else None,
+                    "precision": float(results.box.mp) if hasattr(results.box, 'mp') else None,
+                    "recall": float(results.box.mr) if hasattr(results.box, 'mr') else None,
+                }
+        except Exception as e:
+            print(f"Warning: Could not extract metrics: {e}")
+        
+        # Load dataset config to get data info
+        data_info = {}
+        try:
+            with open(self.data_config, 'r') as f:
+                data_config_content = yaml.safe_load(f)
+            data_info = {
+                "dataset_path": data_config_content.get('path', ''),
+                "dataset_name": Path(data_config_content.get('path', '')).name,
+                "num_classes": data_config_content.get('nc', 2),
+                "class_names": data_config_content.get('names', []),
+            }
+        except Exception as e:
+            print(f"Warning: Could not read dataset config: {e}")
+        
+        # Hardware info
+        hardware_info = {
+            "gpu_available": self.gpu_available,
+            "gpu_name": torch.cuda.get_device_name(0) if self.gpu_available else None,
+            "gpu_memory_gb": round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2) if self.gpu_available else None,
+            "device_used": self.device if self.device else "auto",
+        }
+        
+        # Training duration from timestamps
+        training_info = {
+            # Model Info
+            "model": {
+                "base_model": self.model_version,
+                "architecture": self.model_version.replace("yolov8", "YOLOv8 ").replace("yolo11", "YOLO11 ").upper().strip(),
+                "model_file": final_model.name,
+                "model_size_mb": round(final_model.stat().st_size / (1024 * 1024), 2) if final_model.exists() else None,
+            },
+            
+            # Training Config
+            "training_config": {
+                "epochs": self.epochs,
+                "batch_size": self.batch_size,
+                "image_size": list(self.img_size),
+                "optimizer": "auto",
+                "pretrained": True,
+                "resume": False,
+            },
+            
+            # Data Augmentation
+            "augmentation": {
+                "hsv_h": 0.015,
+                "hsv_s": 0.7,
+                "hsv_v": 0.4,
+                "translate": 0.1,
+                "scale": 0.5,
+                "fliplr": 0.5,
+                "mosaic": 1.0,
+            },
+            
+            # Dataset Info
+            "dataset": data_info,
+            
+            # Hardware
+            "hardware": hardware_info,
+            
+            # Results
+            "metrics": metrics,
+            
+            # Paths
+            "paths": {
+                "training_results_dir": str(save_dir),
+                "model_weights_path": str(final_model),
+                "data_config": str(self.data_config),
+            },
+            
+            # Timestamps
+            "timestamps": {
+                "trained_at": datetime.now().isoformat(),
+                "date": today_date,
+            },
+        }
+        
+        # Save training info JSON
+        info_file = models_dir / f"{base_name}_{timestamp}_info.json"
+        with open(info_file, 'w', encoding='utf-8') as f:
+            json.dump(training_info, f, indent=2, ensure_ascii=False)
+        print(f"Training info saved to: {info_file}")
+        
+        # Also save a summary to the model directory
+        summary_file = models_dir / "latest_training.json"
+        with open(summary_file, 'w', encoding='utf-8') as f:
+            json.dump(training_info, f, indent=2, ensure_ascii=False)
+        print(f"Latest training summary: {summary_file}")
 
         return results
 

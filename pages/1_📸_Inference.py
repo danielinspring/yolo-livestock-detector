@@ -129,7 +129,7 @@ with tab1:
                 # Original image
                 with col1:
                     st.markdown("**Original Image**")
-                    st.image(image, use_container_width=True)
+                    st.image(image, width='stretch')
 
                 # Run inference
                 with st.spinner(f"Processing {uploaded_file.name}..."):
@@ -193,7 +193,7 @@ with tab1:
                 # Detection result
                 with col2:
                     st.markdown("**Detection Result**")
-                    st.image(result_img, use_container_width=True)
+                    st.image(result_img, width='stretch')
 
                 # Metrics
                 col_m1, col_m2, col_m3 = st.columns(3)
@@ -343,7 +343,7 @@ with tab2:
                 if frame_count % 10 == 0:
                     frame_display.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
                                        caption=f"Frame {frame_count}",
-                                       use_container_width=True)
+                                       width='stretch')
 
             cap.release()
             out.release()

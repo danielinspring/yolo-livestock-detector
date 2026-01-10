@@ -217,7 +217,7 @@ with tab1:
         uploaded_file = st.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png'])
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded Image", use_container_width=True)
+            st.image(image, caption="Uploaded Image", width='stretch')
             
             if st.button("Run Detection"):
                 with st.spinner("Running inference..."):
@@ -241,7 +241,7 @@ with tab1:
                     ]
                     annotated = label_annotator.annotate(annotated, detections=detections, labels=labels)
                     
-                    st.image(annotated, caption="Detection Results", use_container_width=True)
+                    st.image(annotated, caption="Detection Results", width='stretch')
                     
                     st.markdown(f"**Detections:** {len(detections)}")
                     for i, (class_id, conf) in enumerate(zip(detections.class_id, detections.confidence)):
@@ -290,7 +290,7 @@ with tab1:
                             ]
                             annotated = label_annotator.annotate(annotated, detections=detections, labels=labels)
                             
-                            st.image(annotated, caption=img_path.name, use_container_width=True)
+                            st.image(annotated, caption=img_path.name, width='stretch')
                             st.caption(f"Detections: {len(detections)}")
 
 with tab2:
@@ -312,14 +312,14 @@ with tab2:
         with col1:
             if confusion_matrix_path.exists():
                 st.markdown("**Confusion Matrix**")
-                st.image(str(confusion_matrix_path), use_container_width=True)
+                st.image(str(confusion_matrix_path), width='stretch')
             else:
                 st.info("Confusion matrix not found")
         
         with col2:
             if confusion_matrix_normalized_path.exists():
                 st.markdown("**Confusion Matrix (Normalized)**")
-                st.image(str(confusion_matrix_normalized_path), use_container_width=True)
+                st.image(str(confusion_matrix_normalized_path), width='stretch')
             else:
                 st.info("Normalized confusion matrix not found")
         
@@ -341,7 +341,7 @@ with tab2:
             with cols[idx % 2]:
                 if metric_path.exists():
                     st.markdown(f"**{name}**")
-                    st.image(str(metric_path), use_container_width=True)
+                    st.image(str(metric_path), width='stretch')
                 else:
                     st.info(f"{name} not found")
         
@@ -354,7 +354,7 @@ with tab2:
             df = pd.read_csv(results_csv)
             # Clean column names
             df.columns = [c.strip() for c in df.columns]
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
             
             # Plot key metrics
             if 'metrics/mAP50(B)' in df.columns:
@@ -451,4 +451,4 @@ with tab3:
                     labels={'x': 'Class', 'y': 'Count'},
                     title='Detection Class Distribution'
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')

@@ -161,7 +161,7 @@ with st.sidebar:
     
     # Archive button
     st.markdown("---")
-    if st.button("📦 Archive Dataset", type="secondary", use_container_width=True):
+    if st.button("📦 Archive Dataset", type="secondary", width='stretch'):
         import shutil
         archived_dir = Path("data/archived")
         archived_dir.mkdir(parents=True, exist_ok=True)
@@ -198,7 +198,7 @@ if not train_dir.exists():
         if test_ratio < 0:
             st.error("Train + Val ratios exceed 100%. Please adjust.")
         else:
-            if st.button("🔀 Split Dataset", type="primary", use_container_width=True):
+            if st.button("🔀 Split Dataset", type="primary", width='stretch'):
                 with st.spinner("Splitting dataset..."):
                     cmd = [
                         "python", "scripts/split_data.py",
@@ -271,7 +271,7 @@ if total_images_bg > 0:
             height=350
         )
         
-        st.plotly_chart(fig_bg, use_container_width=True)
+        st.plotly_chart(fig_bg, width='stretch')
     
     with col2:
         # Statistics
@@ -310,7 +310,7 @@ for split in ["train", "val", "test"]:
         })
 
 df_splits = pd.DataFrame(split_data)
-st.dataframe(df_splits, use_container_width=True, hide_index=True)
+st.dataframe(df_splits, width='stretch', hide_index=True)
 
 # Visualizations
 st.markdown("---")
@@ -334,7 +334,7 @@ with col1:
         height=400
     )
 
-    st.plotly_chart(fig_images, use_container_width=True)
+    st.plotly_chart(fig_images, width='stretch')
 
 with col2:
     # Annotations per split pie chart
@@ -352,7 +352,7 @@ with col2:
         height=400
     )
 
-    st.plotly_chart(fig_annotations, use_container_width=True)
+    st.plotly_chart(fig_annotations, width='stretch')
 
 # Class distribution (including background images)
 st.markdown("### Class Distribution per Split")
@@ -395,7 +395,7 @@ fig_class.update_layout(
     legend_title="Type"
 )
 
-st.plotly_chart(fig_class, use_container_width=True)
+st.plotly_chart(fig_class, width='stretch')
 
 # Overall class balance
 st.markdown("### Overall Class Balance")
@@ -418,7 +418,7 @@ with col2:
         height=400
     )
 
-    st.plotly_chart(fig_balance, use_container_width=True)
+    st.plotly_chart(fig_balance, width='stretch')
 
     # Balance ratio
     ratio = total_ride / total_cowtail if total_cowtail > 0 else 0

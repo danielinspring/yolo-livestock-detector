@@ -174,7 +174,7 @@ if uploaded_files:
         - Output: {output_format}
         """)
 
-    if st.button("🚀 Generate Labels", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Labels", type="primary", width='stretch'):
         # Load model
         with st.spinner("Loading model..."):
             try:
@@ -293,7 +293,7 @@ if uploaded_files:
 
                 # Display in expander
                 with st.expander(f"👁️ {uploaded_file.name} - {len(annotations_yolo)} detections"):
-                    st.image(cv2.cvtColor(viz_img, cv2.COLOR_BGR2RGB), use_container_width=True)
+                    st.image(cv2.cvtColor(viz_img, cv2.COLOR_BGR2RGB), width='stretch')
 
             # Update progress
             progress_bar.progress((idx + 1) / len(uploaded_files))
@@ -371,7 +371,7 @@ README.md        - This file
             file_name="auto_labels.zip",
             mime="application/zip",
             type="primary",
-            use_container_width=True
+            width='stretch'
         )
 
         # Show sample labels

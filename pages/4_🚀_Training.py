@@ -136,7 +136,7 @@ if is_running:
     st.info(f"🔄 {status.get('message', 'Training is running...')}")
     
     # Stop button
-    if st.button("⏹️ Stop Training", type="primary", use_container_width=True):
+    if st.button("⏹️ Stop Training", type="primary", width='stretch'):
         result = manager.stop_training()
         if result["success"]:
             st.success(result["message"])
@@ -263,7 +263,7 @@ else:
         st.markdown("---")
         
         # Start button
-        if st.button("🚀 Start Training", type="primary", use_container_width=True):
+        if st.button("🚀 Start Training", type="primary", width='stretch'):
             # Get selected dataset path from session state
             data_path = st.session_state.get("selected_dataset_path", "")
 

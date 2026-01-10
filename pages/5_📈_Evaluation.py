@@ -253,7 +253,14 @@ with st.expander("📋 Class Names"):
 st.markdown("---")
 
 # Main evaluation tabs
-tab1, tab2, tab3 = st.tabs(["🔍 Sample Predictions", "📊 Validation Metrics", "🖼️ Batch Evaluation"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "🔍 Sample Predictions", 
+    "📊 Validation Metrics", 
+    "🖼️ Batch Evaluation",
+    "🎯 Confidence Finder",
+    "⚖️ Model Comparison",
+    "🔬 Error Analysis"
+])
 
 with tab1:
     st.markdown("### Sample Predictions")
@@ -746,3 +753,434 @@ with tab3:
                 fig.update_layout(barmode='group', title='Detection Results by Class',
                                   xaxis_title='Class', yaxis_title='Count')
                 st.plotly_chart(fig, use_container_width=True)
+
+# Tab 4: Confidence Threshold Finder
+with tab4:
+    st.markdown("### 🎯 Optimal Confidence Threshold Finder")
+    st.markdown("Find the best confidence threshold that maximizes F1 score.")
+    
+    val_images_dir = selected_dataset / "images" / "val" if selected_dataset else Path("data/processed/images/val")
+    val_labels_dir = selected_dataset / "labels" / "val" if selected_dataset else Path("data/processed/labels/val")
+    
+    if not val_images_dir.exists() or not val_labels_dir.exists():
+        st.warning("⚠️ Validation dataset with labels required for threshold optimization")
+    else:
+        val_images = list(val_images_dir.glob("*.jpg")) + list(val_images_dir.glob("*.png"))
+        
+        if len(val_images) == 0:
+            st.warning("No validation images found")
+        else:
+            st.success(f"✓ Found {len(val_images)} validation images")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                n_samples_thresh = st.slider("Sample images for analysis", 10, min(50, len(val_images)), min(20, len(val_images)), key="thresh_samples")
+            with col2:
+                iou_for_thresh = st.slider("IoU Threshold", 0.3, 0.9, 0.5, 0.05, key="thresh_iou")
+            
+            if st.button("🔍 Find Optimal Threshold", type="primary"):
+                import plotly.graph_objects as go
+                
+                progress = st.progress(0)
+                status = st.empty()
+                
+                # Test confidence thresholds from 0.1 to 0.9
+                conf_thresholds = np.arange(0.1, 0.95, 0.05)
+                results_by_conf = []
+                
+                sample_images = val_images[:n_samples_thresh]
+                
+                for conf_idx, conf_thresh in enumerate(conf_thresholds):
+                    status.text(f"Testing confidence threshold: {conf_thresh:.2f}")
+                    progress.progress((conf_idx + 1) / len(conf_thresholds))
+                    
+                    total_tp, total_fp, total_fn = 0, 0, 0
+                    
+                    for img_path in sample_images:
+                        image = Image.open(img_path)
+                        img_width, img_height = image.size
+                        
+                        label_path = val_labels_dir / (img_path.stem + ".txt")
+                        gt_boxes, gt_classes = parse_yolo_label(label_path, img_width, img_height)
+                        
+                        results = model.predict(img_path, conf=conf_thresh, iou=iou_threshold, verbose=False)
+                        result = results[0]
+                        detections = sv.Detections.from_ultralytics(result)
+                        
+                        pred_boxes = detections.xyxy if len(detections) > 0 else np.array([])
+                        pred_classes = detections.class_id if len(detections) > 0 else np.array([])
+                        
+                        matched, unmatched_preds, unmatched_gts = match_predictions_to_gt(
+                            pred_boxes, pred_classes, gt_boxes, gt_classes, iou_for_thresh
+                        )
+                        
+                        total_tp += len(matched)
+                        total_fp += len(unmatched_preds)
+                        total_fn += len(unmatched_gts)
+                    
+                    precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
+                    recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
+                    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+                    
+                    results_by_conf.append({
+                        "conf": conf_thresh,
+                        "precision": precision,
+                        "recall": recall,
+                        "f1": f1,
+                        "tp": total_tp,
+                        "fp": total_fp,
+                        "fn": total_fn
+                    })
+                
+                status.empty()
+                progress.empty()
+                
+                # Find optimal threshold
+                best_result = max(results_by_conf, key=lambda x: x["f1"])
+                
+                st.markdown("---")
+                st.markdown("### 🏆 Optimal Threshold Found")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Best Confidence", f"{best_result['conf']:.2f}")
+                with col2:
+                    st.metric("Best F1 Score", f"{best_result['f1']:.1%}")
+                with col3:
+                    st.metric("Precision", f"{best_result['precision']:.1%}")
+                with col4:
+                    st.metric("Recall", f"{best_result['recall']:.1%}")
+                
+                # Plot curves
+                st.markdown("---")
+                st.markdown("### 📈 Metrics vs Confidence Threshold")
+                
+                import pandas as pd
+                df_thresh = pd.DataFrame(results_by_conf)
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=df_thresh['conf'], y=df_thresh['precision'], 
+                                         name='Precision', line=dict(color='#28a745')))
+                fig.add_trace(go.Scatter(x=df_thresh['conf'], y=df_thresh['recall'], 
+                                         name='Recall', line=dict(color='#007bff')))
+                fig.add_trace(go.Scatter(x=df_thresh['conf'], y=df_thresh['f1'], 
+                                         name='F1 Score', line=dict(color='#dc3545', width=3)))
+                
+                # Mark optimal point
+                fig.add_trace(go.Scatter(x=[best_result['conf']], y=[best_result['f1']], 
+                                         mode='markers', name='Optimal',
+                                         marker=dict(size=15, color='gold', symbol='star')))
+                
+                fig.update_layout(
+                    title='Precision, Recall, F1 vs Confidence Threshold',
+                    xaxis_title='Confidence Threshold',
+                    yaxis_title='Score',
+                    yaxis=dict(range=[0, 1])
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Recommendations
+                st.markdown("---")
+                st.markdown("### 💡 Recommendations")
+                
+                # Find threshold for high precision (fewer FP)
+                high_prec = max(results_by_conf, key=lambda x: x["precision"] if x["recall"] > 0.5 else 0)
+                # Find threshold for high recall (fewer FN)
+                high_rec = max(results_by_conf, key=lambda x: x["recall"] if x["precision"] > 0.5 else 0)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.info(f"""
+                    **🎯 For High Precision** (fewer false alarms)
+                    - Confidence: **{high_prec['conf']:.2f}**
+                    - Precision: {high_prec['precision']:.1%} / Recall: {high_prec['recall']:.1%}
+                    """)
+                with col2:
+                    st.info(f"""
+                    **🔍 For High Recall** (miss fewer objects)
+                    - Confidence: **{high_rec['conf']:.2f}**
+                    - Precision: {high_rec['precision']:.1%} / Recall: {high_rec['recall']:.1%}
+                    """)
+
+# Tab 5: Model Comparison
+with tab5:
+    st.markdown("### ⚖️ Model Comparison (A/B Testing)")
+    st.markdown("Compare two models on the same validation dataset.")
+    
+    if len(model_versions) < 1:
+        st.warning("Need at least one model version for comparison")
+    else:
+        # Flatten all model files for selection
+        all_model_files = []
+        for version, files in model_versions.items():
+            for f in files:
+                all_model_files.append(f)
+        
+        if len(all_model_files) < 2:
+            st.info("Add more trained models to enable comparison")
+        else:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### Model A")
+                model_a_path = st.selectbox(
+                    "Select Model A",
+                    options=[str(f) for f in all_model_files],
+                    format_func=lambda x: f"📦 {Path(x).parent.name}/{Path(x).name}",
+                    key="model_a"
+                )
+            
+            with col2:
+                st.markdown("#### Model B")
+                model_b_path = st.selectbox(
+                    "Select Model B",
+                    options=[str(f) for f in all_model_files],
+                    format_func=lambda x: f"📦 {Path(x).parent.name}/{Path(x).name}",
+                    key="model_b",
+                    index=min(1, len(all_model_files)-1)
+                )
+            
+            val_images_dir = selected_dataset / "images" / "val" if selected_dataset else Path("data/processed/images/val")
+            val_labels_dir = selected_dataset / "labels" / "val" if selected_dataset else Path("data/processed/labels/val")
+            
+            if model_a_path == model_b_path:
+                st.warning("Please select different models for comparison")
+            elif not val_images_dir.exists():
+                st.warning("Validation images not found")
+            else:
+                val_images = list(val_images_dir.glob("*.jpg")) + list(val_images_dir.glob("*.png"))
+                n_compare = st.slider("Images to compare", 10, min(50, len(val_images)), min(20, len(val_images)), key="compare_n")
+                
+                if st.button("🔄 Run Comparison", type="primary"):
+                    import pandas as pd
+                    
+                    progress = st.progress(0)
+                    status = st.empty()
+                    
+                    # Load both models
+                    status.text("Loading Model A...")
+                    model_a = YOLO(model_a_path)
+                    status.text("Loading Model B...")
+                    model_b = YOLO(model_b_path)
+                    
+                    results_a = {"tp": 0, "fp": 0, "fn": 0}
+                    results_b = {"tp": 0, "fp": 0, "fn": 0}
+                    
+                    sample_images = val_images[:n_compare]
+                    
+                    for idx, img_path in enumerate(sample_images):
+                        status.text(f"Comparing on image {idx + 1}/{n_compare}")
+                        progress.progress((idx + 1) / n_compare)
+                        
+                        image = Image.open(img_path)
+                        img_width, img_height = image.size
+                        
+                        label_path = val_labels_dir / (img_path.stem + ".txt")
+                        gt_boxes, gt_classes = parse_yolo_label(label_path, img_width, img_height)
+                        
+                        # Model A
+                        det_a = sv.Detections.from_ultralytics(model_a.predict(img_path, conf=confidence, iou=iou_threshold, verbose=False)[0])
+                        pred_a_boxes = det_a.xyxy if len(det_a) > 0 else np.array([])
+                        pred_a_classes = det_a.class_id if len(det_a) > 0 else np.array([])
+                        matched_a, unmatched_a, unmatch_gt_a = match_predictions_to_gt(pred_a_boxes, pred_a_classes, gt_boxes, gt_classes, 0.5)
+                        results_a["tp"] += len(matched_a)
+                        results_a["fp"] += len(unmatched_a)
+                        results_a["fn"] += len(unmatch_gt_a)
+                        
+                        # Model B
+                        det_b = sv.Detections.from_ultralytics(model_b.predict(img_path, conf=confidence, iou=iou_threshold, verbose=False)[0])
+                        pred_b_boxes = det_b.xyxy if len(det_b) > 0 else np.array([])
+                        pred_b_classes = det_b.class_id if len(det_b) > 0 else np.array([])
+                        matched_b, unmatched_b, unmatch_gt_b = match_predictions_to_gt(pred_b_boxes, pred_b_classes, gt_boxes, gt_classes, 0.5)
+                        results_b["tp"] += len(matched_b)
+                        results_b["fp"] += len(unmatched_b)
+                        results_b["fn"] += len(unmatch_gt_b)
+                    
+                    status.empty()
+                    progress.empty()
+                    
+                    # Calculate metrics
+                    def calc_metrics(r):
+                        prec = r["tp"] / (r["tp"] + r["fp"]) if (r["tp"] + r["fp"]) > 0 else 0
+                        rec = r["tp"] / (r["tp"] + r["fn"]) if (r["tp"] + r["fn"]) > 0 else 0
+                        f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0
+                        return {"precision": prec, "recall": rec, "f1": f1, **r}
+                    
+                    metrics_a = calc_metrics(results_a)
+                    metrics_b = calc_metrics(results_b)
+                    
+                    st.markdown("---")
+                    st.markdown("### 📊 Comparison Results")
+                    
+                    # Comparison table
+                    comparison_df = pd.DataFrame({
+                        "Metric": ["Precision", "Recall", "F1 Score", "True Positives", "False Positives", "False Negatives"],
+                        "Model A": [f"{metrics_a['precision']:.1%}", f"{metrics_a['recall']:.1%}", f"{metrics_a['f1']:.1%}", 
+                                   metrics_a["tp"], metrics_a["fp"], metrics_a["fn"]],
+                        "Model B": [f"{metrics_b['precision']:.1%}", f"{metrics_b['recall']:.1%}", f"{metrics_b['f1']:.1%}", 
+                                   metrics_b["tp"], metrics_b["fp"], metrics_b["fn"]],
+                        "Winner": ["A" if metrics_a['precision'] > metrics_b['precision'] else "B" if metrics_b['precision'] > metrics_a['precision'] else "Tie",
+                                  "A" if metrics_a['recall'] > metrics_b['recall'] else "B" if metrics_b['recall'] > metrics_a['recall'] else "Tie",
+                                  "A" if metrics_a['f1'] > metrics_b['f1'] else "B" if metrics_b['f1'] > metrics_a['f1'] else "Tie",
+                                  "A" if metrics_a['tp'] > metrics_b['tp'] else "B" if metrics_b['tp'] > metrics_a['tp'] else "Tie",
+                                  "A" if metrics_a['fp'] < metrics_b['fp'] else "B" if metrics_b['fp'] < metrics_a['fp'] else "Tie",
+                                  "A" if metrics_a['fn'] < metrics_b['fn'] else "B" if metrics_b['fn'] < metrics_a['fn'] else "Tie"]
+                    })
+                    
+                    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+                    
+                    # Winner announcement
+                    if metrics_a['f1'] > metrics_b['f1']:
+                        st.success(f"🏆 **Model A wins** with F1 Score: {metrics_a['f1']:.1%} vs {metrics_b['f1']:.1%}")
+                    elif metrics_b['f1'] > metrics_a['f1']:
+                        st.success(f"🏆 **Model B wins** with F1 Score: {metrics_b['f1']:.1%} vs {metrics_a['f1']:.1%}")
+                    else:
+                        st.info("🤝 Both models have equal F1 Score")
+
+# Tab 6: Error Analysis
+with tab6:
+    st.markdown("### 🔬 Error Analysis")
+    st.markdown("Identify images where the model performs poorly.")
+    
+    val_images_dir = selected_dataset / "images" / "val" if selected_dataset else Path("data/processed/images/val")
+    val_labels_dir = selected_dataset / "labels" / "val" if selected_dataset else Path("data/processed/labels/val")
+    
+    if not val_images_dir.exists() or not val_labels_dir.exists():
+        st.warning("⚠️ Validation dataset with labels required for error analysis")
+    else:
+        val_images = list(val_images_dir.glob("*.jpg")) + list(val_images_dir.glob("*.png"))
+        
+        if len(val_images) == 0:
+            st.warning("No validation images found")
+        else:
+            st.success(f"✓ Found {len(val_images)} validation images")
+            
+            n_analyze = st.slider("Images to analyze", 20, min(100, len(val_images)), min(50, len(val_images)), key="error_n")
+            
+            if st.button("🔍 Analyze Errors", type="primary"):
+                import pandas as pd
+                
+                progress = st.progress(0)
+                status = st.empty()
+                
+                error_data = []
+                sample_images = val_images[:n_analyze]
+                
+                for idx, img_path in enumerate(sample_images):
+                    status.text(f"Analyzing {idx + 1}/{n_analyze}: {img_path.name}")
+                    progress.progress((idx + 1) / n_analyze)
+                    
+                    image = Image.open(img_path)
+                    img_width, img_height = image.size
+                    
+                    label_path = val_labels_dir / (img_path.stem + ".txt")
+                    gt_boxes, gt_classes = parse_yolo_label(label_path, img_width, img_height)
+                    
+                    results = model.predict(img_path, conf=confidence, iou=iou_threshold, verbose=False)
+                    detections = sv.Detections.from_ultralytics(results[0])
+                    
+                    pred_boxes = detections.xyxy if len(detections) > 0 else np.array([])
+                    pred_classes = detections.class_id if len(detections) > 0 else np.array([])
+                    
+                    matched, unmatched_preds, unmatched_gts = match_predictions_to_gt(
+                        pred_boxes, pred_classes, gt_boxes, gt_classes, 0.5
+                    )
+                    
+                    error_data.append({
+                        "image": img_path.name,
+                        "path": str(img_path),
+                        "gt_count": len(gt_boxes),
+                        "pred_count": len(pred_boxes),
+                        "tp": len(matched),
+                        "fp": len(unmatched_preds),
+                        "fn": len(unmatched_gts),
+                        "total_errors": len(unmatched_preds) + len(unmatched_gts)
+                    })
+                
+                status.empty()
+                progress.empty()
+                
+                df_errors = pd.DataFrame(error_data)
+                df_errors = df_errors.sort_values("total_errors", ascending=False)
+                
+                st.markdown("---")
+                
+                # Summary
+                total_fp = df_errors["fp"].sum()
+                total_fn = df_errors["fn"].sum()
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total False Positives", total_fp)
+                with col2:
+                    st.metric("Total False Negatives", total_fn)
+                with col3:
+                    st.metric("Images with Errors", len(df_errors[df_errors["total_errors"] > 0]))
+                
+                st.markdown("---")
+                st.markdown("### 🔴 Worst Performing Images")
+                
+                # Show top 5 worst images
+                worst_images = df_errors.head(5)
+                
+                for _, row in worst_images.iterrows():
+                    if row["total_errors"] == 0:
+                        continue
+                        
+                    with st.expander(f"❌ {row['image']} - {row['total_errors']} errors (FP: {row['fp']}, FN: {row['fn']})"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**Statistics:**")
+                            st.markdown(f"- Ground Truth: {row['gt_count']} objects")
+                            st.markdown(f"- Predictions: {row['pred_count']} detections")
+                            st.markdown(f"- True Positives: {row['tp']}")
+                            st.markdown(f"- False Positives: {row['fp']} (extra detections)")
+                            st.markdown(f"- False Negatives: {row['fn']} (missed objects)")
+                        
+                        with col2:
+                            # Show annotated image
+                            img_path = Path(row['path'])
+                            image = Image.open(img_path)
+                            img_width, img_height = image.size
+                            
+                            label_path = val_labels_dir / (img_path.stem + ".txt")
+                            gt_boxes, gt_classes = parse_yolo_label(label_path, img_width, img_height)
+                            
+                            results = model.predict(img_path, conf=confidence, iou=iou_threshold, verbose=False)
+                            detections = sv.Detections.from_ultralytics(results[0])
+                            
+                            pred_boxes = detections.xyxy if len(detections) > 0 else np.array([])
+                            pred_classes = detections.class_id if len(detections) > 0 else np.array([])
+                            
+                            matched, unmatched_preds, unmatched_gts = match_predictions_to_gt(
+                                pred_boxes, pred_classes, gt_boxes, gt_classes, 0.5
+                            )
+                            
+                            annotated = np.array(image)
+                            import cv2
+                            
+                            # Draw GT in green
+                            for i, box in enumerate(gt_boxes):
+                                x1, y1, x2, y2 = map(int, box)
+                                color = (0, 255, 0) if i not in unmatched_gts else (255, 165, 0)  # Orange for missed
+                                label = "GT" if i not in unmatched_gts else "MISSED"
+                                cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+                                cv2.putText(annotated, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                            
+                            # Draw predictions
+                            for i, box in enumerate(pred_boxes):
+                                x1, y1, x2, y2 = map(int, box)
+                                if i in unmatched_preds:
+                                    cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                                    cv2.putText(annotated, "FP", (x1, y2+15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                            
+                            st.image(annotated, caption="🟢 GT | 🟠 Missed | 🔴 False Positive", use_container_width=True)
+                
+                st.markdown("---")
+                st.markdown("### 📋 Full Error Summary")
+                
+                # Show summary table
+                display_df = df_errors[["image", "gt_count", "pred_count", "tp", "fp", "fn", "total_errors"]].copy()
+                display_df.columns = ["Image", "GT Objects", "Predictions", "TP", "FP", "FN", "Total Errors"]
+                st.dataframe(display_df, use_container_width=True, hide_index=True)

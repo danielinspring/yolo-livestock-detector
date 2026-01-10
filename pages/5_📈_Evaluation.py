@@ -106,9 +106,25 @@ def get_model_versions():
             versions[version_name] = []
         versions[version_name].append(results_model_path)
 
-    # Sort each version's files (best.pt first, then by name)
+    # Sort each version's files (best.pt first, then by timestamp in filename - newest first)
+    import re
+    def extract_time_from_name(path):
+        """Extract time portion from filename like combined_model_155359.pt -> 155359"""
+        match = re.search(r'_(\d{6})\.pt$', path.name)
+        if match:
+            return match.group(1)
+        return "000000"  # Default for files without timestamp
+    
     for version in versions:
-        versions[version].sort(key=lambda x: (0 if x.name == "best.pt" else 1, x.name))
+        versions[version].sort(key=lambda x: (
+            0 if x.name == "best.pt" else 1,  # best.pt always first
+            extract_time_from_name(x)  # Then by time in filename
+        ), reverse=False)
+        # Re-sort: best.pt first, then others by time descending
+        best_files = [f for f in versions[version] if f.name == "best.pt"]
+        other_files = [f for f in versions[version] if f.name != "best.pt"]
+        other_files.sort(key=lambda x: extract_time_from_name(x), reverse=True)  # Newest first
+        versions[version] = best_files + other_files
 
     return versions
 

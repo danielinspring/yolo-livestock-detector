@@ -135,7 +135,7 @@ class DatasetSplitter:
         print("\nClass distribution analysis:")
 
         for split_name, pairs in splits.items():
-            class_counts = {0: 0, 1: 0}  # ride: 0, cowtail: 1
+            class_counts = {0: 0, 1: 0}  # cowtail: 0, ride: 1
             total_objects = 0
 
             labels_dir = self.data_dir / "labels" / split_name
@@ -152,8 +152,8 @@ class DatasetSplitter:
 
             print(f"\n  {split_name.upper()}:")
             print(f"    Total objects: {total_objects}")
-            print(f"    Ride: {class_counts.get(0, 0)} ({class_counts.get(0, 0)/total_objects*100:.1f}%)")
-            print(f"    Cowtail: {class_counts.get(1, 0)} ({class_counts.get(1, 0)/total_objects*100:.1f}%)")
+            print(f"    Cowtail: {class_counts.get(0, 0)} ({class_counts.get(0, 0)/total_objects*100:.1f}%)")
+            print(f"    Ride: {class_counts.get(1, 0)} ({class_counts.get(1, 0)/total_objects*100:.1f}%)")
 
 
 def main():

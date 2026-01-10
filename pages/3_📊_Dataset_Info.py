@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from collections import defaultdict
 import json
+import subprocess
 
 st.set_page_config(page_title="Dataset Info", page_icon="📊", layout="wide")
 
@@ -16,6 +17,25 @@ st.title("📊 Dataset Information & Statistics")
 
 # Class names
 CLASS_NAMES = {0: "cowtail", 1: "ride"}
+
+
+def get_dataset_versions():
+    """Scan data/dataset directory for available processed datasets"""
+    dataset_dir = Path("data/dataset")
+    versions = []
+
+    if dataset_dir.exists():
+        # Find all processed_* folders
+        for folder in dataset_dir.iterdir():
+            if folder.is_dir() and folder.name.startswith("processed_"):
+                # Check if it has the expected structure (images or labels folder)
+                if (folder / "images").exists() or (folder / "labels").exists():
+                    versions.append(folder)
+
+    # Sort by modification time (newest first)
+    versions.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+
+    return versions
 
 def analyze_dataset(data_dir):
     """Analyze dataset and return statistics"""
@@ -54,7 +74,7 @@ def analyze_dataset(data_dir):
                 for line in lines:
                     line = line.strip()
                     if line:
-                        class_id = int(line.split()[0])
+                        class_id = int(float(line.split()[0]))
                         class_name = CLASS_NAMES.get(class_id, "unknown")
                         stats["class_distribution"][split][class_name] += 1
                         num_annotations += 1
@@ -71,20 +91,131 @@ def analyze_dataset(data_dir):
     return stats
 
 
-# Check for processed data
-processed_dir = Path("data/processed")
+def analyze_background_images(data_dir):
+    """Analyze background vs labeled images in the dataset"""
+    data_dir = Path(data_dir)
+    
+    stats = {
+        "labeled": 0,      # Images with at least one annotation
+        "background": 0,   # Images with no annotations (empty label files)
+        "per_split": {}
+    }
+    
+    # Check each split
+    for split in ["train", "val", "test"]:
+        images_dir = data_dir / "images" / split
+        labels_dir = data_dir / "labels" / split
+        
+        if not images_dir.exists():
+            continue
+        
+        split_stats = {"labeled": 0, "background": 0}
+        
+        image_files = list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + \
+                      list(images_dir.glob("*.JPG")) + list(images_dir.glob("*.PNG"))
+        
+        for img_file in image_files:
+            label_file = labels_dir / f"{img_file.stem}.txt"
+            
+            if label_file.exists():
+                # Check if label file has any content
+                with open(label_file, 'r') as f:
+                    content = f.read().strip()
+                    if content:
+                        split_stats["labeled"] += 1
+                        stats["labeled"] += 1
+                    else:
+                        split_stats["background"] += 1
+                        stats["background"] += 1
+            else:
+                # No label file = background image
+                split_stats["background"] += 1
+                stats["background"] += 1
+        
+        stats["per_split"][split] = split_stats
+    
+    return stats
 
-if not processed_dir.exists():
-    st.warning("⚠️ No processed dataset found")
+
+# Get available datasets
+dataset_versions = get_dataset_versions()
+
+if not dataset_versions:
+    st.warning("⚠️ No processed dataset found in `data/dataset/`")
     st.info("Run preprocessing first: `python scripts/preprocess_data.py`")
     st.stop()
+
+# Sidebar for dataset selection
+with st.sidebar:
+    st.markdown("## 📊 Dataset Selection")
+
+    selected_dataset = st.selectbox(
+        "Select Dataset",
+        options=dataset_versions,
+        format_func=lambda x: f"📁 {x.name}",
+        help="Choose a processed dataset folder"
+    )
+
+    st.markdown("---")
+    st.markdown(f"**Path:** `{selected_dataset}`")
+    
+    # Archive button
+    st.markdown("---")
+    if st.button("📦 Archive Dataset", type="secondary", use_container_width=True):
+        import shutil
+        archived_dir = Path("data/archived")
+        archived_dir.mkdir(parents=True, exist_ok=True)
+        
+        dest_path = archived_dir / selected_dataset.name
+        
+        if dest_path.exists():
+            st.error(f"❌ Archive already exists: `{dest_path}`")
+        else:
+            try:
+                shutil.move(str(selected_dataset), str(dest_path))
+                st.success(f"✅ Archived to `{dest_path}`")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Archive failed: {e}")
+
+processed_dir = selected_dataset
 
 # Check if data is split
 train_dir = processed_dir / "images" / "train"
 
 if not train_dir.exists():
     st.warning("⚠️ Dataset not split yet")
-    st.info("Run data splitting: `python scripts/split_data.py`")
+    st.info("This dataset needs to be split into train/val/test sets before viewing statistics.")
+
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("### Split Options")
+        train_ratio = st.slider("Train Ratio", 0.5, 0.9, 0.7, 0.05)
+        val_ratio = st.slider("Validation Ratio", 0.05, 0.3, 0.2, 0.05)
+        test_ratio = round(1.0 - train_ratio - val_ratio, 2)
+        st.info(f"Test Ratio: {test_ratio:.0%}")
+
+        if test_ratio < 0:
+            st.error("Train + Val ratios exceed 100%. Please adjust.")
+        else:
+            if st.button("🔀 Split Dataset", type="primary", use_container_width=True):
+                with st.spinner("Splitting dataset..."):
+                    cmd = [
+                        "python", "scripts/split_data.py",
+                        "--data-dir", str(processed_dir),
+                        "--train-ratio", str(train_ratio),
+                        "--val-ratio", str(val_ratio),
+                        "--test-ratio", str(test_ratio)
+                    ]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+
+                    if result.returncode == 0:
+                        st.success("✅ Dataset split completed!")
+                        st.code(result.stdout)
+                        st.rerun()
+                    else:
+                        st.error("❌ Split failed!")
+                        st.code(result.stderr)
     st.stop()
 
 # Analyze dataset
@@ -110,6 +241,55 @@ with col3:
 with col4:
     total_cowtail = sum(stats["class_distribution"][split]["cowtail"] for split in stats["splits"])
     st.metric("Cowtail Detections", total_cowtail)
+
+st.markdown("---")
+
+# Background Images Analysis
+st.markdown("## 🖼️ Background vs Labeled Images")
+
+with st.spinner("Analyzing background images..."):
+    bg_stats = analyze_background_images(processed_dir)
+
+total_images_bg = bg_stats["labeled"] + bg_stats["background"]
+
+if total_images_bg > 0:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Ratio distribution pie chart
+        st.markdown("### Distribution")
+        
+        fig_bg = go.Figure(data=[go.Pie(
+            labels=["Labeled Images", "Background Images"],
+            values=[bg_stats["labeled"], bg_stats["background"]],
+            hole=0.3,
+            marker_colors=['#3498db', '#95a5a6']
+        )])
+        
+        fig_bg.update_layout(
+            showlegend=True,
+            height=350
+        )
+        
+        st.plotly_chart(fig_bg, use_container_width=True)
+    
+    with col2:
+        # Statistics
+        st.markdown("### Statistics")
+        
+        bg_ratio = bg_stats["background"] / bg_stats["labeled"] * 100 if bg_stats["labeled"] > 0 else 0
+        
+        st.metric("Labeled Images", bg_stats["labeled"])
+        st.metric("Background Images", bg_stats["background"])
+        st.metric("Background Ratio", f"{bg_ratio:.1f}%")
+        
+        st.markdown("**Per Split Breakdown:**")
+        for split, split_stats in bg_stats["per_split"].items():
+            total_split = split_stats["labeled"] + split_stats["background"]
+            bg_pct = split_stats["background"] / total_split * 100 if total_split > 0 else 0
+            st.markdown(f"- **{split.capitalize()}**: {split_stats['background']}/{total_split} background ({bg_pct:.1f}%)")
+else:
+    st.info("No image data available")
 
 st.markdown("---")
 
@@ -174,7 +354,7 @@ with col2:
 
     st.plotly_chart(fig_annotations, use_container_width=True)
 
-# Class distribution
+# Class distribution (including background images)
 st.markdown("### Class Distribution per Split")
 
 class_dist_data = []
@@ -189,6 +369,13 @@ for split in stats["splits"].keys():
         "Class": "Cowtail",
         "Count": stats["class_distribution"][split]["cowtail"]
     })
+    # Add background images count
+    if split in bg_stats["per_split"]:
+        class_dist_data.append({
+            "Split": split.capitalize(),
+            "Class": "Background",
+            "Count": bg_stats["per_split"][split]["background"]
+        })
 
 df_class_dist = pd.DataFrame(class_dist_data)
 
@@ -198,14 +385,14 @@ fig_class = px.bar(
     y="Count",
     color="Class",
     barmode="group",
-    color_discrete_map={"Ride": "#2ecc71", "Cowtail": "#e74c3c"},
+    color_discrete_map={"Ride": "#2ecc71", "Cowtail": "#e74c3c", "Background": "#95a5a6"},
     height=400
 )
 
 fig_class.update_layout(
     xaxis_title="Dataset Split",
-    yaxis_title="Number of Annotations",
-    legend_title="Class"
+    yaxis_title="Count",
+    legend_title="Type"
 )
 
 st.plotly_chart(fig_class, use_container_width=True)

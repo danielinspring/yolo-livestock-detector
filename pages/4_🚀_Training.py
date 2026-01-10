@@ -14,6 +14,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from training_manager import TrainingManager
 
+
+def get_dataset_versions():
+    """Scan data/dataset directory for available processed datasets"""
+    dataset_dir = Path("data/dataset")
+    versions = []
+
+    if dataset_dir.exists():
+        # Find all processed_* folders
+        for folder in dataset_dir.iterdir():
+            if folder.is_dir() and folder.name.startswith("processed_"):
+                versions.append(folder)
+
+    # Sort by modification time (newest first)
+    versions.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+
+    return versions
+
 # Page configuration
 st.set_page_config(
     page_title="Training - YOLO Combined Model",
@@ -247,28 +264,35 @@ else:
         
         # Start button
         if st.button("🚀 Start Training", type="primary", use_container_width=True):
-            with st.spinner("Starting training..."):
-                result = manager.start_training(
-                    model=model,
-                    epochs=epochs,
-                    batch_size=batch_size,
-                    resume=resume,
-                    device=device,
-                    img_width=img_width,
-                    img_height=img_height,
-                    clearml_enabled=clearml_enabled,
-                    clearml_project=clearml_project,
-                    clearml_task=clearml_task,
-                )
-                
-                if result["success"]:
-                    st.success(result["message"])
-                    if clearml_enabled:
-                        st.info("📊 ClearML tracking enabled. View experiments at: https://app.clear.ml")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(result["message"])
+            # Get selected dataset path from session state
+            data_path = st.session_state.get("selected_dataset_path", "")
+
+            if not data_path:
+                st.error("Please select a dataset first")
+            else:
+                with st.spinner("Starting training..."):
+                    result = manager.start_training(
+                        model=model,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        resume=resume,
+                        device=device,
+                        img_width=img_width,
+                        img_height=img_height,
+                        clearml_enabled=clearml_enabled,
+                        clearml_project=clearml_project,
+                        clearml_task=clearml_task,
+                        data_path=data_path,
+                    )
+
+                    if result["success"]:
+                        st.success(result["message"])
+                        if clearml_enabled:
+                            st.info("📊 ClearML tracking enabled. View experiments at: https://app.clear.ml")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(result["message"])
     
     with col_right:
         st.markdown("### 📊 Previous Training")
@@ -309,29 +333,47 @@ else:
         
         # Dataset status
         st.markdown("---")
-        st.markdown("### 📦 Dataset Status")
-        
-        processed_dir = Path("data/processed")
-        if processed_dir.exists():
-            train_dir = processed_dir / "images" / "train"
-            val_dir = processed_dir / "images" / "val"
-            
+        st.markdown("### 📦 Dataset Selection")
+
+        # Get available datasets
+        available_datasets = get_dataset_versions()
+
+        if available_datasets:
+            selected_dataset = st.selectbox(
+                "Select Dataset",
+                options=available_datasets,
+                format_func=lambda x: f"📁 {x.name}",
+                help="Choose a processed dataset for training",
+                key="training_dataset"
+            )
+
+            # Store in session state for training
+            st.session_state["selected_dataset_path"] = str(selected_dataset)
+
+            train_dir = selected_dataset / "images" / "train"
+            val_dir = selected_dataset / "images" / "val"
+
             if train_dir.exists():
-                train_count = len(list(train_dir.glob("*.jpg"))) + len(list(train_dir.glob("*.png")))
-                val_count = len(list(val_dir.glob("*.jpg"))) + len(list(val_dir.glob("*.png"))) if val_dir.exists() else 0
-                
+                train_count = len(list(train_dir.glob("*.jpg"))) + len(list(train_dir.glob("*.png"))) + \
+                              len(list(train_dir.glob("*.JPG"))) + len(list(train_dir.glob("*.PNG")))
+                val_count = len(list(val_dir.glob("*.jpg"))) + len(list(val_dir.glob("*.png"))) + \
+                            len(list(val_dir.glob("*.JPG"))) + len(list(val_dir.glob("*.PNG"))) if val_dir.exists() else 0
+
                 st.success("✓ Dataset ready for training")
                 col_t, col_v = st.columns(2)
                 with col_t:
                     st.metric("Training Images", train_count)
                 with col_v:
                     st.metric("Validation Images", val_count)
+
+                # Show dataset path
+                st.caption(f"Path: `{selected_dataset}`")
             else:
                 st.warning("⚠️ Dataset not split")
-                st.info("Run: `python scripts/split_data.py`")
+                st.info("Go to Dataset Info page to split")
         else:
-            st.warning("⚠️ No processed dataset")
-            st.info("Run: `python scripts/preprocess_data.py`")
+            st.warning("⚠️ No processed datasets found")
+            st.info("Run preprocessing first or go to Dataset Info page")
         
         # Model status
         st.markdown("---")

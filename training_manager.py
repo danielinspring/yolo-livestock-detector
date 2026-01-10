@@ -74,6 +74,28 @@ class TrainingManager:
         status = self.get_status()
         return status.get("status") == "running" and self._is_process_alive(status.get("pid"))
     
+    def _create_dataset_yaml(self, data_path: str) -> Path:
+        """Create dataset.yaml for the selected dataset"""
+        import yaml
+
+        data_path = Path(data_path)
+        yaml_content = {
+            'path': str(data_path.absolute()),
+            'train': 'images/train',
+            'val': 'images/val',
+            'test': 'images/test',
+            'nc': 2,
+            'names': ['cowtail', 'ride']
+        }
+
+        yaml_path = Path("configs/dataset.yaml")
+        yaml_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(yaml_path, 'w') as f:
+            yaml.dump(yaml_content, f, default_flow_style=False)
+
+        return yaml_path
+
     def start_training(
         self,
         model: str = "yolov8s",
@@ -86,10 +108,14 @@ class TrainingManager:
         clearml_enabled: bool = False,
         clearml_project: str = "YOLO-Training",
         clearml_task: str = "",
+        data_path: str = "",
     ) -> Dict[str, Any]:
         """
         Start training in background process
-        
+
+        Args:
+            data_path: Path to processed dataset directory (e.g., data/dataset/processed_20260110_123456)
+
         Returns:
             Status dict with 'success' key indicating if training started
         """
@@ -99,20 +125,35 @@ class TrainingManager:
                 "success": False,
                 "message": "Training is already in progress"
             }
-        
+
+        # Create/update dataset.yaml for selected dataset
+        if data_path:
+            data_yaml = self._create_dataset_yaml(data_path)
+        else:
+            data_yaml = Path("configs/dataset.yaml")
+
+        # Verify dataset yaml exists
+        if not data_yaml.exists():
+            return {
+                "success": False,
+                "message": f"Dataset config not found: {data_yaml}"
+            }
+
         # Build command
+        import sys
         cmd = [
-            "python", "scripts/train.py",
+            sys.executable, "scripts/train.py",
             "--model", model,
             "--epochs", str(epochs),
             "--batch", str(batch_size),
             "--img-width", str(img_width),
             "--img-height", str(img_height),
+            "--data", str(data_yaml),
         ]
-        
+
         if device:
             cmd.extend(["--device", device])
-        
+
         if resume:
             cmd.append("--resume")
         
@@ -156,18 +197,22 @@ class TrainingManager:
                 "device": device,
                 "img_width": img_width,
                 "img_height": img_height,
+                "data_path": data_path,
                 "clearml_enabled": clearml_enabled,
                 "clearml_project": clearml_project if clearml_enabled else None,
                 "clearml_task": clearml_task if clearml_enabled else None,
             }
-            
+
+            # Get dataset name for display
+            dataset_name = Path(data_path).name if data_path else "default"
+
             status = {
                 "status": "running",
                 "start_time": datetime.now().isoformat(),
                 "end_time": None,
                 "config": config,
                 "pid": process.pid,
-                "message": f"Training started with {model}, {epochs} epochs"
+                "message": f"Training started with {model}, {epochs} epochs on {dataset_name}"
             }
             self._save_status(status)
             

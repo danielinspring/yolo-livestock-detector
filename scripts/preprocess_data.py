@@ -69,6 +69,22 @@ class LabelStudioPreprocessor:
             'noise': A.Compose([
                 A.GaussNoise(var_limit=(10, 50), p=1.0)
             ], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels'])),
+
+            'blur': A.Compose([
+                A.Blur(blur_limit=3, p=1.0)
+            ], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels'])),
+
+            'clahe': A.Compose([
+                A.CLAHE(p=1.0)
+            ], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels'])),
+
+            'hsv': A.Compose([
+                A.HueSaturationValue(p=1.0)
+            ], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels'])),
+
+            'rgb': A.Compose([
+                A.RGBShift(p=1.0)
+            ], bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels'])),
         }
 
     def _parse_yolo_label(self, label_path):
@@ -142,6 +158,8 @@ class LabelStudioPreprocessor:
         ride_count = 0
         cowtail_count = 0
         cowtail_images = []  # List of (image_path, label_path) for cowtail images
+        ride_in_cowtail_images = 0  # Ride annotations that will be duplicated
+        cowtail_in_cowtail_images = 0  # Cowtail annotations that will be duplicated
 
         print("\nAnalyzing class distribution...")
         for label_file in output_labels_dir.glob("*.txt"):
@@ -157,6 +175,9 @@ class LabelStudioPreprocessor:
                     img_path = output_images_dir / f"{img_stem}{ext}"
                     if img_path.exists():
                         cowtail_images.append((img_path, label_file))
+                        # Count annotations in cowtail images (these get duplicated)
+                        ride_in_cowtail_images += class_labels.count(1)
+                        cowtail_in_cowtail_images += class_labels.count(0)
                         break
 
         print(f"  Current distribution:")
@@ -175,19 +196,35 @@ class LabelStudioPreprocessor:
             print(f"  Already balanced (ratio {current_ratio:.2f}:1 <= {max_ratio}:1). Skipping augmentation.")
             return
 
-        # Calculate how many cowtail annotations we need
-        target_cowtail = int(ride_count / target_ratio)
-        needed_cowtail = target_cowtail - cowtail_count
+        # Calculate how many cowtail annotations we need, accounting for ride in cowtail images
+        # When we augment, for every cowtail_in_cowtail_images cowtail added,
+        # we also add ride_in_cowtail_images ride
+        # Let α = ride_in_cowtail_images / cowtail_in_cowtail_images
+        # We want: (R0 + α*N) / (C0 + N) = target_ratio
+        # Solving: N = (target_ratio * C0 - R0) / (α - target_ratio)
+
+        alpha = ride_in_cowtail_images / cowtail_in_cowtail_images if cowtail_in_cowtail_images > 0 else 0
+        print(f"    Ride:cowtail ratio in augmentable images: {alpha:.2f}:1")
+
+        denominator = alpha - target_ratio
+        if abs(denominator) < 0.001:
+            print("  Cannot reach target ratio through augmentation. Skipping.")
+            return
+
+        needed_cowtail = int((target_ratio * cowtail_count - ride_count) / denominator)
 
         if needed_cowtail <= 0:
             print("  No augmentation needed.")
             return
 
-        print(f"\n  Target cowtail count: {target_cowtail}")
-        print(f"  Need to generate: {needed_cowtail} more cowtail annotations")
+        # Calculate expected final counts
+        expected_final_cowtail = cowtail_count + needed_cowtail
+        expected_final_ride = ride_count + int(alpha * needed_cowtail)
+        print(f"\n  Need to generate: {needed_cowtail} more cowtail annotations")
+        print(f"  Expected final: Ride={expected_final_ride}, Cowtail={expected_final_cowtail}")
 
         # Augmentation suffixes
-        aug_types = ['flip', 'bright', 'rot', 'noise']
+        aug_types = ['flip', 'bright', 'rot', 'noise', 'blur', 'clahe', 'hsv', 'rgb']
 
         # Calculate how many times to augment each image
         # Each image can generate up to 4 augmented versions
@@ -238,14 +275,20 @@ class LabelStudioPreprocessor:
 
             aug_round += 1
 
-        # Final count
-        final_cowtail = cowtail_count + augmented_count
-        final_ratio = ride_count / final_cowtail if final_cowtail > 0 else float('inf')
+        # Re-count actual final distribution (augmented images may contain ride too)
+        final_ride = 0
+        final_cowtail = 0
+        for label_file in output_labels_dir.glob("*.txt"):
+            _, class_labels = self._parse_yolo_label(label_file)
+            final_ride += class_labels.count(1)
+            final_cowtail += class_labels.count(0)
+
+        final_ratio = final_ride / final_cowtail if final_cowtail > 0 else float('inf')
 
         print(f"\nAugmentation Summary:")
         print(f"  Generated {augmented_count} new cowtail annotations")
         print(f"  Final distribution:")
-        print(f"    Ride: {ride_count}")
+        print(f"    Ride: {final_ride}")
         print(f"    Cowtail: {final_cowtail}")
         print(f"    Final ratio (ride:cowtail): {final_ratio:.2f}:1")
 
@@ -557,8 +600,8 @@ def main():
     parser.add_argument(
         '--target-ratio',
         type=float,
-        default=2.0,
-        help='Target ride:cowtail ratio for augmentation (default: 2.0 for 2:1)'
+        default=2.3,
+        help='Target ride:cowtail ratio for augmentation (default: 2.3)'
     )
 
     args = parser.parse_args()

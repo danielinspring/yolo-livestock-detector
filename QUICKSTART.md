@@ -18,6 +18,19 @@ pip install -r requirements.txt
 pip install albumentations
 ```
 
+## Step 1.5: Password Setup (Optional)
+
+The Streamlit app requires password authentication. The default password is `admin123`.
+
+To change the password:
+
+```bash
+# Create or edit the secrets file
+echo 'password = "your_new_password"' > .streamlit/secrets.toml
+```
+
+> ⚠️ **Note**: The `.streamlit/secrets.toml` file is gitignored for security. Never commit passwords to version control.
+
 ## Step 2: Prepare Your Data
 
 Place your Label Studio export data in the `data/` directory. The export folder can have any name (e.g., `data/my-project-export/`).

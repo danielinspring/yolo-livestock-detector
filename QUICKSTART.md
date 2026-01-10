@@ -13,6 +13,9 @@ This guide will help you get started with training and using the combined ride a
 ```bash
 # Install dependencies
 pip install -r requirements.txt
+
+# Install albumentations for data augmentation (recommended)
+pip install albumentations
 ```
 
 ## Step 2: Prepare Your Data
@@ -42,11 +45,14 @@ python scripts/preprocess_data.py --input data/<your-export-folder>
 # With images from a different location
 python scripts/preprocess_data.py --input data/<your-export-folder> --images /path/to/your/images
 
-# Include 10% background images (recommended to reduce false positives)
-python scripts/preprocess_data.py --input data/<your-export-folder> --background-ratio 0.1
+# Disable automatic augmentation
+python scripts/preprocess_data.py --input data/<your-export-folder> --no-augment
+
+# Custom target ratio for augmentation (default is 2:1)
+python scripts/preprocess_data.py --input data/<your-export-folder> --target-ratio 1.5
 
 # Example with actual folder name
-python scripts/preprocess_data.py --input data/project-8-at-2026-01-07-07-09-0780865d --background-ratio 0.1
+python scripts/preprocess_data.py --input data/project-8-at-2026-01-07-07-09-0780865d
 ```
 
 **Preprocessing Options:**
@@ -54,41 +60,64 @@ python scripts/preprocess_data.py --input data/project-8-at-2026-01-07-07-09-078
 | Option | Description |
 |--------|-------------|
 | `--input` | Path to Label Studio export folder (required) |
-| `--output` | Output directory (default: `data/processed`) |
+| `--output` | Output directory (default: `data/dataset/processed_YYYYMMDD_HHMMSS`) |
 | `--images` | Path to images if not in export folder |
-| `--background-ratio` | Ratio of background images to include (0.0-1.0, default: 0.0) |
+| `--background-ratio` | Ratio of background images to include (default: 0.065 = 6.5%) |
+| `--no-augment` | Disable automatic minority class augmentation |
+| `--target-ratio` | Target ride:cowtail ratio for augmentation (default: 2.0 for 2:1) |
 
 This will:
 - Filter labels to keep only "ride" and "cowtail"
 - Remap class IDs: cowtail → 0, ride → 1
-- Optionally add background images (images without target objects) to reduce false positives
+- Add background images (6.5% by default) to reduce false positives
+- **Auto-augment minority class (cowtail)** when imbalance exceeds 2.5:1 ratio, targeting 2:1 using:
+  - HorizontalFlip (좌우 반전)
+  - RandomBrightness (밝기 조절)
+  - Rotate ±15° (회전)
+  - GaussNoise (노이즈)
+  - *Note: Augmentation only triggers if ride:cowtail ratio > 2.5:1*
 - Clean up orphan labels (labels without matching images)
-- Create processed dataset in `data/processed/`
+- Create timestamped dataset in `data/dataset/processed_YYYYMMDD_HHMMSS/`
 
 **Combining Multiple Datasets:**
 
-You can run the script multiple times with different input folders to stack data:
+You can run the script multiple times with different input folders to the same output:
 
 ```bash
-python scripts/preprocess_data.py --input data/dataset-A
-python scripts/preprocess_data.py --input data/dataset-B
-python scripts/preprocess_data.py --input data/dataset-C
+# Specify the same output directory to combine datasets
+python scripts/preprocess_data.py --input data/dataset-A --output data/dataset/combined
+python scripts/preprocess_data.py --input data/dataset-B --output data/dataset/combined
+python scripts/preprocess_data.py --input data/dataset-C --output data/dataset/combined
 ```
 
-> ⚠️ **Note on filename collisions**: If files have the same name across datasets, labels will be **overwritten** while images will be **skipped**. Ensure unique filenames across datasets, or clear `data/processed/` before each run if you don't want stacking.
+> ⚠️ **Note on filename collisions**: If files have the same name across datasets, labels will be **overwritten** while images will be **skipped**. Ensure unique filenames across datasets.
 
 ### Split the Data
 
 Split into train/validation/test sets:
 
 ```bash
-python scripts/split_data.py
+# Split a specific dataset (use the timestamped folder name)
+python scripts/split_data.py --data-dir data/dataset/processed_20260110_143022
+
+# Custom split ratios
+python scripts/split_data.py --data-dir data/dataset/processed_20260110_143022 --train-ratio 0.8 --val-ratio 0.15 --test-ratio 0.05
 ```
 
+**Split Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--data-dir` | Path to processed dataset folder |
+| `--train-ratio` | Training set ratio (default: 0.7) |
+| `--val-ratio` | Validation set ratio (default: 0.2) |
+| `--test-ratio` | Test set ratio (default: 0.1) |
+| `--seed` | Random seed for reproducibility (default: 42) |
+
 This creates:
-- Training set: 70%
-- Validation set: 20%
-- Test set: 10%
+- Training set: 70% (default)
+- Validation set: 20% (default)
+- Test set: 10% (default)
 
 ### View Dataset with FiftyOne (Optional)
 
@@ -100,14 +129,14 @@ Visualize your dataset with FiftyOne to verify annotations before training.
 # Activate FiftyOne environment
 source venv-fiftyone/bin/activate
 
-# View the processed dataset
-python scripts/view_dataset.py --data data/processed
+# View the processed dataset (use your timestamped folder)
+python scripts/view_dataset.py --data data/dataset/processed_20260110_143022
 
 # View specific split only
-python scripts/view_dataset.py --data data/processed --split val
+python scripts/view_dataset.py --data data/dataset/processed_20260110_143022 --split val
 
 # Use different port
-python scripts/view_dataset.py --data data/processed --port 5151
+python scripts/view_dataset.py --data data/dataset/processed_20260110_143022 --port 5151
 ```
 
 Open http://localhost:5151 in your browser to explore images and annotations.
@@ -284,10 +313,13 @@ python scripts/train.py --model yolov8n  # Nano model (faster)
 ## Tips for Best Results
 
 1. **Data Quality**: Ensure annotations are accurate
-2. **Balance**: Check class distribution (ride vs cowtail)
-3. **Augmentation**: Training script includes data augmentation
+2. **Balance**: Preprocessing auto-augments minority class to 2:1 ratio (when > 2.5:1)
+3. **Augmentation**: Both preprocessing (class balance) and training include augmentation
 4. **Validation**: Monitor validation metrics during training
 5. **Fine-tuning**: Adjust confidence threshold for your use case
+6. **Streamlit UI**: Use `streamlit run Home.py` for visual dataset management
+   - **Dataset Info** page: Select datasets, view statistics, split datasets with custom ratios
+   - **Evaluation** page: Select models, run evaluation, compare metrics
 
 ## Next Steps
 

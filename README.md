@@ -77,18 +77,24 @@ The GUI will open in your browser at http://localhost:8501
 
 - **📸 Inference**: Upload images/videos for real-time detection
 - **🏷️ Auto-Label**: Batch label new images automatically
-- **📊 Dataset Info**: View dataset statistics and visualizations
+- **📊 Dataset Info**: Select datasets, view statistics, split with custom ratios
+- **📈 Evaluation**: Select models, run evaluation, compare metrics
 
 ## Command Line Usage
 
 ### 1. Preprocess Data
 ```bash
-# Basic preprocessing
+# Basic preprocessing (includes 6.5% background images + auto-augmentation)
 python scripts/preprocess_data.py --input data/<your-export-folder>
 
-# With 10% background images (recommended)
+# Disable auto-augmentation
+python scripts/preprocess_data.py --input data/<your-export-folder> --no-augment
+
+# Custom background ratio
 python scripts/preprocess_data.py --input data/<your-export-folder> --background-ratio 0.1
 ```
+
+Output is saved to timestamped folder: `data/dataset/processed_YYYYMMDD_HHMMSS/`
 
 ### 2. Train Model
 ```bash

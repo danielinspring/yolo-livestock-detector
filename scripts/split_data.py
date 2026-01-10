@@ -146,7 +146,7 @@ class DatasetSplitter:
                     for line in f:
                         line = line.strip()
                         if line:
-                            class_id = int(line.split()[0])
+                            class_id = int(float(line.split()[0]))
                             class_counts[class_id] = class_counts.get(class_id, 0) + 1
                             total_objects += 1
 

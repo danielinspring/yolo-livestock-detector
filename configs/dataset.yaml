@@ -2,7 +2,7 @@ names:
 - cowtail
 - ride
 nc: 2
-path: data/processed
+path: data/dataset/processed_20260110_093059
 test: images/test
 train: images/train
 val: images/val

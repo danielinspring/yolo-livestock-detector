@@ -57,6 +57,23 @@ except ImportError as e:
     st.info("Install with: `pip install supervision ultralytics`")
     st.stop()
 
+# Scan for available dataset versions
+def get_dataset_versions():
+    """Scan data/dataset directory for available processed datasets"""
+    dataset_dir = Path("data/dataset")
+    versions = []
+
+    if dataset_dir.exists():
+        # Find all processed_* folders
+        for folder in dataset_dir.iterdir():
+            if folder.is_dir() and folder.name.startswith("processed_"):
+                versions.append(folder)
+
+    # Sort by modification time (newest first)
+    versions.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+
+    return versions
+
 # Scan for available model versions
 def get_model_versions():
     """Scan models directory for model versions (folders containing .pt files)"""
@@ -171,6 +188,25 @@ with st.sidebar:
         help="IoU threshold for NMS"
     )
 
+    st.markdown("---")
+
+    # Dataset selection
+    st.markdown("### Dataset")
+    
+    dataset_versions = get_dataset_versions()
+    
+    if dataset_versions:
+        selected_dataset = st.selectbox(
+            "Select Dataset",
+            options=dataset_versions,
+            format_func=lambda x: f"📁 {x.name}",
+            help="Choose a processed dataset for evaluation"
+        )
+        st.caption(f"Path: `{selected_dataset}`")
+    else:
+        st.warning("⚠️ No processed datasets found")
+        selected_dataset = None
+
 # Load model
 @st.cache_resource
 def load_model(model_path):
@@ -208,10 +244,10 @@ with tab1:
     st.markdown("Run inference on sample images from the validation set.")
     
     # Check for validation images
-    val_images_dir = Path("data/processed/images/val")
+    val_images_dir = selected_dataset / "images" / "val" if selected_dataset else Path("data/processed/images/val")
     
-    if not val_images_dir.exists():
-        st.warning("⚠️ Validation images not found at `data/processed/images/val`")
+    if not val_images_dir or not val_images_dir.exists():
+        st.warning(f"⚠️ Validation images not found at `{val_images_dir}`")
         st.info("Upload an image to test the model:")
         
         uploaded_file = st.file_uploader("Upload Image", type=['jpg', 'jpeg', 'png'])
@@ -387,8 +423,8 @@ with tab3:
     st.markdown("### Batch Evaluation")
     st.markdown("Evaluate the model on a batch of images and view statistics.")
     
-    val_images_dir = Path("data/processed/images/val")
-    val_labels_dir = Path("data/processed/labels/val")
+    val_images_dir = selected_dataset / "images" / "val" if selected_dataset else Path("data/processed/images/val")
+    val_labels_dir = selected_dataset / "labels" / "val" if selected_dataset else Path("data/processed/labels/val")
     
     if not val_images_dir.exists():
         st.warning("Validation images directory not found")
